@@ -7,8 +7,6 @@ import appConfig from './config/app.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { RedisModule } from '@nestjs-modules/ioredis';
 import { BullModule } from '@nestjs/bullmq';
-import { AdminModule } from './modules/admin/admin.module';
-import { ApplicationModule } from './modules/application/application.module';
 
 @Module({
   imports: [
@@ -33,8 +31,6 @@ import { ApplicationModule } from './modules/application/application.module';
     }),
     PrismaModule,
     AuthModule,
-    AdminModule,
-    ApplicationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

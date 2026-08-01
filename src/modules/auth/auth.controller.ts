@@ -67,9 +67,9 @@ export class AuthController {
   async me(@Req() req: Request) {
     const user_id = req.user.userId;
     const response = await this.authService.me(user_id);
-    if (response.data.avatar) {
-      const key = `${appConfig().storageUrl.avatar}${response.data.avatar}`;
-      response.data.avatar = await Storage.url(key);
+    if (response.data.avatar_url) {
+      const key = `${appConfig().storageUrl.avatar}${response.data.avatar_url}`;
+      response.data.avatar_url = await Storage.url(key);
     }
     return response;
   }
@@ -89,12 +89,12 @@ export class AuthController {
   async login(@Req() req: Request, @Res() res: Response, @GetDeviceInfo() deviceInfo: DeviceInfo) {
     const user_id = req.user.id;
     const user_email = req.user.email;
-    const user_type = req.user.type;
+    const user_role = req.user.role;
 
     const response = await this.authService.login(
       user_email,
       user_id,
-      user_type,
+      user_role,
       deviceInfo,
     );
 
@@ -228,7 +228,7 @@ export class AuthController {
   ) {
     try {
       if (image) {
-        const generatedFilename = `${StringHelper.randomString(16)}${extname(image.originalname)}`;
+        const generatedFilename = `${StringHelper.randomString(24)}${extname(image.originalname)}`;
         const key = `${appConfig().storageUrl.avatar}${generatedFilename}`;
         await Storage.put(key, image.buffer);
         data.avatar = generatedFilename;
@@ -245,8 +245,6 @@ export class AuthController {
       throw error;
     }
   }
-
-
 
 
   // verify email to verify the email

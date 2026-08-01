@@ -20,10 +20,10 @@ import { StringHelper } from '../../common/helper/string.helper';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { randomInt } from 'crypto';
-import { UserStatus } from 'src/generated/prisma/enums';
 import { DeviceInfo } from 'src/common/decorator/get-device-info.decorator';
 import { PrismaHelper } from 'src/prisma/helper/exclude';
-import { Prisma } from 'src/generated/prisma/client';
+import { Prisma, UserRole, UserStatus } from 'src/generated/prisma/client';
+import { redisKeys } from 'src/common/redis/redis-keys';
 
 
 @Injectable()
@@ -37,18 +37,6 @@ export class AuthService {
     private mailService: MailService,
     @InjectRedis() private readonly redis: Redis,
   ) { }
-
-  private getRegisterOtpKey(email: string): string {
-    return `register_otp:${email}`;
-  }
-
-  private getForgotPasswordOtpKey(email: string): string {
-    return `forgot_password_otp:${email}`;
-  }
-
-  private getRefreshTokenKey(user_session_id: string): string {
-    return `refresh_token:${user_session_id}`;
-  }
 
 
   async register(createUserDto: CreateUserDto) {
@@ -70,28 +58,39 @@ export class AuthService {
         name: createUserDto.name,
         email: createUserDto.email,
         password: hashPassword,
+        phone: createUserDto.phone,
+        university: createUserDto.university,
+        profession: createUserDto.profession,
+        gender: createUserDto.gender,
+        status: UserStatus.ACTIVE,
+        email_verified_at: new Date(),
       },
     });
 
-    const otp = String(randomInt(100000, 1000000));
+    // const otp = String(randomInt(100000, 1000000));
 
-    await this.redis.set(
-      this.getRegisterOtpKey(createUserDto.email),
-      otp,
-      'EX',
-      this.registerOtpExpirySeconds,
-    );
+    // await this.redis.set(
+    //   this.getRegisterOtpKey(createUserDto.email),
+    //   otp,
+    //   'EX',
+    //   this.registerOtpExpirySeconds,
+    // );
 
-    // send otp code to email
-    await this.mailService.sendOtpCodeToEmail({
-      email: createUserDto.email,
-      name: createUserDto.name,
-      otp: otp,
-    });
+    // // send otp code to email
+    // await this.mailService.sendOtpCodeToEmail({
+    //   email: createUserDto.email,
+    //   name: createUserDto.name,
+    //   otp: otp,
+    // });
+
+    // return {
+    //   success: true,
+    //   message: 'We have sent an OTP code to your email',
+    // };
 
     return {
       success: true,
-      message: 'We have sent an OTP code to your email',
+      message: 'User registered successfully',
     };
 
   }
@@ -107,7 +106,7 @@ export class AuthService {
     }
 
     if (updateUserDto.avatar) {
-      data.avatar = updateUserDto.avatar;
+      data.avatar_url = updateUserDto.avatar;
     }
 
     const user = await this.prisma.user.findUnique({
@@ -151,7 +150,7 @@ export class AuthService {
     }
 
     if (user.status === UserStatus.SUSPENDED) {
-      throw new UnauthorizedException('Your account has been suspended. Please contact support.');
+      throw new UnauthorizedException('Your account has been suspended.');
     }
 
     const _isValidPassword = await bcrypt.compare(password, user.password);
@@ -166,7 +165,7 @@ export class AuthService {
       const otp = String(randomInt(100000, 1000000));
 
       await this.redis.set(
-        this.getRegisterOtpKey(email),
+        redisKeys.getRegisterOtpKey(email),
         otp,
         'EX',
         this.registerOtpExpirySeconds,
@@ -186,7 +185,7 @@ export class AuthService {
     return safeUser;
   }
 
-  async login(email: string, user_id: string, type: string, deviceInfo: DeviceInfo) {
+  async login(email: string, user_id: string, role: UserRole, deviceInfo: DeviceInfo) {
     // delete any existing session for the same device and user
     await this.prisma.userSession.deleteMany({
       where: {
@@ -205,7 +204,7 @@ export class AuthService {
       },
     });
 
-    const accessTokenPayload = { email: email, sub: user_id, sessionId: userSession.id, type: type };
+    const accessTokenPayload = { email: email, sub: user_id, sessionId: userSession.id, role: role };
     const refreshTokenPayload = { sessionId: userSession.id, sub: user_id };
 
 
@@ -217,7 +216,7 @@ export class AuthService {
 
     // store refreshToken
     await this.redis.set(
-      this.getRefreshTokenKey(userSession.id),
+      redisKeys.getRefreshTokenKey(userSession.id),
       refreshToken,
       'EX',
       DateHelper.generateFutureDate(appConfig().jwt.refresh_token_expiry).date.getTime() - new Date().getTime()
@@ -231,7 +230,7 @@ export class AuthService {
         access_token: accessToken,
         refresh_token: refreshToken,
       },
-      type: type,
+      role: role,
     };
   }
 
@@ -239,7 +238,7 @@ export class AuthService {
   private async invalidateSession(sessionId: string, ttlSeconds: number) {
     // Flag this session ID as dead in Redis for the remainder of the access token's life
     await this.redis.set(
-      `blacklist:${sessionId}`,
+      redisKeys.getBlacklistKey(sessionId),
       'true',
       'EX',
       ttlSeconds
@@ -248,8 +247,7 @@ export class AuthService {
 
 
   async refreshToken(user_id: string, sessionId: string, refreshToken: string, deviceInfo: DeviceInfo) {
-
-    const storedToken = await this.redis.get(`refresh_token:${sessionId}`);
+    const storedToken = await this.redis.get(redisKeys.getRefreshTokenKey(sessionId));
 
     if (!storedToken || storedToken != refreshToken) {
       throw new UnauthorizedException('Invalid refresh token');
@@ -285,9 +283,9 @@ export class AuthService {
     }
 
     // delete old refresh token
-    await this.redis.del(this.getRefreshTokenKey(sessionId));
+    await this.redis.del(redisKeys.getRefreshTokenKey(sessionId));
 
-    const payload = { email: userDetails.email, sub: userDetails.id, sessionId: newUserSession.id, type: userDetails.type };
+    const payload = { email: userDetails.email, sub: userDetails.id, sessionId: newUserSession.id, role: userDetails.role };
 
     const accessToken = this.jwtService.sign(payload, { expiresIn: DateHelper.generateFutureDate(appConfig().jwt.access_token_expiry).unixSeconds, secret: appConfig().jwt.access_token_secret });
 
@@ -296,7 +294,7 @@ export class AuthService {
     const newRefreshToken = this.jwtService.sign(newRefreshTokenPayload, { expiresIn: DateHelper.generateFutureDate(appConfig().jwt.refresh_token_expiry).unixSeconds, secret: appConfig().jwt.refresh_token_secret });
 
     await this.redis.set(
-      this.getRefreshTokenKey(newUserSession.id),
+      redisKeys.getRefreshTokenKey(newUserSession.id),
       newRefreshToken,
       'EX',
       DateHelper.generateFutureDate(appConfig().jwt.refresh_token_expiry).date.getTime() - new Date().getTime()
@@ -310,19 +308,18 @@ export class AuthService {
         access_token: accessToken,
         refresh_token: newRefreshToken,
       },
-      type: userDetails.type,
+      role: userDetails.role,
     };
   }
 
   async revokeRefreshToken(userId: string, sessionId: string) {
-    const storedToken = await this.redis.get(this.getRefreshTokenKey(sessionId));
+    const storedToken = await this.redis.get(redisKeys.getRefreshTokenKey(sessionId));
     if (!storedToken) {
       throw new UnauthorizedException('Invalid session');
     }
 
     await this.invalidateSession(sessionId, DateHelper.generateFutureDate(appConfig().jwt.access_token_expiry).date.getTime() - new Date().getTime());
-
-    await this.redis.del(this.getRefreshTokenKey(sessionId));
+    await this.redis.del(redisKeys.getRefreshTokenKey(sessionId));
 
     await this.prisma.userSession.delete({
       where: { id: sessionId, user_id: userId }
@@ -356,8 +353,12 @@ export class AuthService {
         id: true,
         name: true,
         email: true,
-        type: true,
-        avatar: true,
+        role: true,
+        avatar_url: true,
+        phone: true,
+        university: true,
+        profession: true,
+        gender: true,
       }
     });
 
@@ -370,8 +371,6 @@ export class AuthService {
       data: user,
     };
   }
-
-
 
   async forgotPassword(email: string) {
     const user = await this.prisma.user.findUnique({
@@ -387,7 +386,7 @@ export class AuthService {
     const otp = String(randomInt(100000, 1000000));
 
     await this.redis.set(
-      this.getForgotPasswordOtpKey(email),
+      redisKeys.getForgotPasswordOtpKey(email),
       otp,
       'EX',
       this.forgotPasswordOtpExpirySeconds
@@ -418,7 +417,7 @@ export class AuthService {
     }
 
 
-    const existToken = await this.redis.get(this.getForgotPasswordOtpKey(email));
+    const existToken = await this.redis.get(redisKeys.getForgotPasswordOtpKey(email));
 
     if (!existToken || existToken !== token) {
       throw new BadRequestException('Invalid token');
@@ -437,7 +436,7 @@ export class AuthService {
     });
 
     // delete otp code
-    await this.redis.del(this.getForgotPasswordOtpKey(email));
+    await this.redis.del(redisKeys.getForgotPasswordOtpKey(email));
 
     return {
       success: true,
@@ -460,7 +459,7 @@ export class AuthService {
       },
       select: {
         id: true,
-        type: true,
+        role: true,
       },
     });
 
@@ -469,7 +468,7 @@ export class AuthService {
     }
 
 
-    const existToken = await this.redis.get(this.getRegisterOtpKey(email));
+    const existToken = await this.redis.get(redisKeys.getRegisterOtpKey(email));
 
     if (!existToken || existToken !== token) {
       throw new BadRequestException('Invalid token');
@@ -485,11 +484,10 @@ export class AuthService {
     });
 
     // delete otp code
-    await this.redis.del(this.getRegisterOtpKey(email));
+    await this.redis.del(redisKeys.getRegisterOtpKey(email));
 
     // auto login after email verification
-    return await this.login(email, user.id, user.type, deviceInfo);
-
+    return await this.login(email, user.id, user.role, deviceInfo);
   }
 
   async resendVerificationEmail(email: string) {
@@ -506,7 +504,7 @@ export class AuthService {
 
     // create otp code
     const otp = String(randomInt(100000, 1000000));
-    await this.redis.set(this.getRegisterOtpKey(email), otp, 'EX', this.registerOtpExpirySeconds);
+    await this.redis.set(redisKeys.getRegisterOtpKey(email), otp, 'EX', this.registerOtpExpirySeconds);
 
     // send otp code to email
     await this.mailService.sendOtpCodeToEmail({

@@ -252,6 +252,12 @@ enum UserRole {
   admin
 }
 
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  SUSPENDED
+}
+
 model User {
   id         String   @id @default(uuid())
   created_at DateTime @default(now()) @db.Timestamptz
@@ -260,8 +266,9 @@ model User {
   name       String
   email      String   @unique
   password   String
-  role       UserRole @default(user)
   avatar_url String?
+  role       UserRole @default(user)
+  status     UserStatus @default(ACTIVE)
 
   phone      String?
   university String?
@@ -310,8 +317,23 @@ model User {
   token_transactions TokenTransaction[]
 
   push_prompt_events PushPromptEvent[]
+  user_sessions      UserSession[]
 
   @@map("users")
+}
+
+model UserSession {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id     String
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  device_name String
+  ip_address  String
+  expires_at  DateTime @db.Timestamptz
+
+  @@map("user_sessions")
 }
 
 model University {

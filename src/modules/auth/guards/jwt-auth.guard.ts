@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Redis } from 'ioredis';
+import { redisKeys } from 'src/common/redis/redis-keys';
 
 
 @Injectable()
@@ -29,8 +30,13 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
 
     if (user && user.sessionId) {
-      const isBlacklisted = await this.redis.get(`blacklist:${user.sessionId}`);
+      console.log(user);
+
+      const isBlacklisted = await this.redis.get(redisKeys.getBlacklistKey(user.sessionId));
+      console.log(isBlacklisted);
+
       if (isBlacklisted) {
+        console.log('Session is blacklisted.');
         throw new UnauthorizedException('This session has been revoked.');
       }
     }
