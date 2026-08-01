@@ -1,0 +1,988 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+generator client_js {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// enum UserType {
+//   ADMIN
+//   CUSTOMER
+// }
+
+// enum UserStatus {
+//   ACTIVE
+//   BLOCKED
+//   SUSPENDED
+// }
+
+// model User {
+//   id         String   @id @default(cuid())
+//   created_At DateTime @default(now())
+//   updated_At DateTime @updatedAt
+
+//   avatar   String?
+//   email    String   @unique
+//   name     String
+//   type     UserType @default(CUSTOMER)
+//   password String
+
+//   email_verified_at DateTime?  @db.Timestamptz
+//   status            UserStatus @default(ACTIVE)
+
+//   // relations
+//   sessions UserSession[]
+
+//   @@map("users")
+// }
+
+// model UserSession {
+//   id         String   @id @default(cuid())
+//   created_at DateTime @default(now()) @db.Timestamptz
+//   updated_at DateTime @updatedAt @db.Timestamptz
+
+//   user_id     String
+//   user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+//   device_name String
+//   ip_address  String
+//   expires_at  DateTime @db.Timestamptz
+
+//   @@map("user_sessions")
+// }
+
+enum ProgressStatus {
+  not_started
+  in_progress
+  completed
+}
+
+enum ContentType {
+  text
+  video
+  pdf
+  link
+}
+
+model RoadmapStage {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  title       String
+  description String?
+  order_index Int      @default(0)
+  year_level  Int
+  icon        String?  @default("school")
+  is_active   Boolean? @default(true)
+
+  // Relations
+  modules RoadmapModule[]
+
+  // Indexes & Mapping
+  @@index([year_level, order_index], name: "idx_roadmap_stages_order")
+  @@map("roadmap_stages")
+}
+
+model RoadmapModule {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  stage_id         String
+  title            String
+  description      String?
+  content_type     ContentType? @default(text)
+  content_url      String?
+  content_text     String?
+  order_index      Int          @default(0)
+  duration_minutes Int?         @default(0)
+  is_active        Boolean?     @default(true)
+
+  // Relations
+  stage    RoadmapStage          @relation(fields: [stage_id], references: [id], onDelete: Cascade)
+  progress UserRoadmapProgress[]
+
+  // Indexes & Mapping
+  @@index([stage_id, order_index], name: "idx_roadmap_modules_stage")
+  @@map("roadmap_modules")
+}
+
+model UserRoadmapProgress {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id      String
+  module_id    String
+  status       ProgressStatus? @default(not_started)
+  completed_at DateTime?       @db.Timestamptz
+
+  // Relations
+  module RoadmapModule @relation(fields: [module_id], references: [id], onDelete: Cascade)
+  user   User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  // Indexes & Constraints
+  @@unique([user_id, module_id], name: "user_module_unique")
+  @@index([user_id], name: "idx_user_roadmap_progress_user")
+  @@index([module_id], name: "idx_user_roadmap_progress_module")
+  @@map("user_roadmap_progress")
+}
+
+model WrittenSubmission {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id      String
+  quiz_id      String
+  question_id  String
+  file_url     String?
+  file_type    String?   @default("text")
+  answer_text  String?
+  submitted_at DateTime  @default(now()) @db.Timestamptz
+  status       String    @default("pending")
+  score        Decimal?  @default(0) @db.Decimal
+  feedback     String?
+  reviewed_by  String?
+  reviewed_at  DateTime? @db.Timestamptz
+
+  // Relations
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  reviewer User?    @relation("ReviewedSubmissions", fields: [reviewed_by], references: [id], onDelete: SetNull)
+  quiz     Quiz     @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [question_id], references: [id], onDelete: Cascade)
+
+  @@map("written_submissions")
+}
+
+model MentorProfile {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id             String   @unique
+  specialization      String?
+  bio                 String?
+  availability_status String   @default("available")
+  subjects            String[] @default([])
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("mentor_profiles")
+}
+
+// Updated MentorQuery Model (added new tracking & priority fields)
+model MentorQuery {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id           String
+  mentor_id         String?
+  subject           String
+  message           String
+  status            String    @default("open")
+  subject_tag       String?
+  priority          String    @default("normal")
+  first_response_at DateTime? @db.Timestamptz
+
+  // Relations
+  replies MentorReply[]
+  ratings MentorRating[]
+  user    User           @relation("UserQueries", fields: [user_id], references: [id], onDelete: Cascade)
+  mentor  User?          @relation("MentorQueries", fields: [mentor_id], references: [id], onDelete: SetNull)
+
+  @@map("mentor_queries")
+}
+
+model MentorReply {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  query_id  String
+  sender_id String
+  message   String
+
+  // Relations
+  query  MentorQuery @relation(fields: [query_id], references: [id], onDelete: Cascade)
+  sender User        @relation(fields: [sender_id], references: [id], onDelete: Cascade)
+
+  @@map("mentor_replies")
+}
+
+model MentorRating {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  query_id  String
+  user_id   String
+  mentor_id String
+  rating    Int
+  comment   String?
+
+  // Relations
+  query  MentorQuery @relation(fields: [query_id], references: [id], onDelete: Cascade)
+  user   User        @relation("UserRatings", fields: [user_id], references: [id], onDelete: Cascade)
+  mentor User        @relation("MentorRatings", fields: [mentor_id], references: [id], onDelete: Cascade)
+
+  // Constraints
+  @@unique([query_id, user_id], name: "query_user_rating_unique")
+  @@map("mentor_ratings")
+}
+
+enum UserRole {
+  user
+  mentor
+  admin
+}
+
+model User {
+  id         String   @id
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  name       String
+  email      String   @unique
+  role       UserRole @default(user)
+  avatar_url String?
+
+  phone      String?
+  university String?
+  profession String? @default("student")
+  gender     String?
+
+  // Relations with other modules
+  written_submissions     WrittenSubmission[]
+  reviewed_submissions    WrittenSubmission[]   @relation("ReviewedSubmissions")
+  mentor_profile          MentorProfile?
+  mentor_queries          MentorQuery[]         @relation("UserQueries")
+  assigned_queries        MentorQuery[]         @relation("MentorQueries")
+  mentor_replies          MentorReply[]
+  mentor_ratings_given    MentorRating[]        @relation("UserRatings")
+  mentor_ratings_recv     MentorRating[]        @relation("MentorRatings")
+  roadmap_progress        UserRoadmapProgress[]
+  responses               Response[]
+  quiz_retake_requests    QuizRetakeRequest[]
+  created_announcements   Announcement[]        @relation("CreatedAnnouncements")
+  user_notifications      UserNotification[]
+  notifications           Notification[]
+  score_history           UserScoreHistory[]
+  weakness_stats          UserWeaknessStat[]
+  created_flashcard_decks FlashcardDeck[]       @relation("CreatedFlashcardDecks")
+  created_study_groups    StudyGroup[]          @relation("CreatedStudyGroups")
+  study_group_members     StudyGroupMember[]
+  study_group_messages    StudyGroupMessage[]
+  favorites               Favorite[]
+  quizzes                 Quiz[]                @relation("CreatedQuizzes")
+
+  // New Discussion Forum Relations
+  created_discussion_groups       DiscussionGroup[]      @relation("CreatedDiscussionGroups")
+  discussion_memberships          DiscussionMember[]
+  discussion_posts                DiscussionPost[]
+  discussion_replies              DiscussionReply[]
+  discussion_reactions            DiscussionReaction[]
+  discussion_reports              DiscussionReport[]     @relation("ReportedDiscussions")
+  reviewed_discussion_reports     DiscussionReport[]     @relation("ReviewedDiscussionReports")
+  sent_discussion_invitations     DiscussionInvitation[] @relation("SentDiscussionInvitations")
+  received_discussion_invitations DiscussionInvitation[] @relation("ReceivedDiscussionInvitations")
+
+  // Token System Relations
+  wallet             UserToken?
+  token_transactions TokenTransaction[]
+
+  push_prompt_events PushPromptEvent[]
+
+  @@map("users")
+}
+
+model University {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  name String  @unique
+  type String? @default("other")
+
+  @@map("universities")
+}
+
+model Quiz {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  title                String
+  description          String    @default("")
+  status               String    @default("upcoming")
+  created_by           String?
+  time_limit           Int?      @default(30)
+  total_questions      Int?      @default(0)
+  has_negative_marking Boolean?  @default(false)
+  syllabus_no          String?
+  total_marks          Int?
+  exam_date            DateTime? @db.Date
+  cut_mark_percent     Int?      @default(50)
+  batch_number         Int?
+  batch_title          String?
+
+  allow_answer_change Boolean @default(false)
+
+  // Relations
+  creator             User?               @relation("CreatedQuizzes", fields: [created_by], references: [id], onDelete: SetNull)
+  created_quizzes     Quiz[]              @relation("CreatedQuizzes")
+  questions           Question[]
+  written_submissions WrittenSubmission[]
+  responses           Response[]
+
+  // New Relation added
+  retake_requests QuizRetakeRequest[]
+  score_history   UserScoreHistory[]
+  quiz            Quiz?               @relation("CreatedQuizzes", fields: [quizId], references: [id])
+  quizId          String?
+
+  // Indexes
+  @@index([batch_number(sort: Desc)], map: "idx_quizzes_batch_number")
+  @@map("quizzes")
+}
+
+model Question {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  quiz_id           String
+  question_text     String
+  question_type     String?  @default("mcq")
+  question_image    String?
+  options           Json     @default("[]")
+  correct_answer    String
+  explanation_text  String?
+  explanation_image String?
+  explanation_math  String?
+  time_limit        Int?     @default(30)
+  negative_marks    Decimal? @default(0) @db.Decimal
+
+  // Relations
+  quiz        Quiz                @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+  submissions WrittenSubmission[]
+  responses   Response[]
+
+  @@index([quiz_id], map: "idx_questions_quiz")
+  @@map("questions")
+}
+
+model Response {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id         String
+  quiz_id         String
+  question_id     String
+  selected_answer String
+  is_correct      Boolean @default(false)
+
+  // Relations
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  quiz     Quiz     @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [question_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, quiz_id], map: "idx_responses_user_quiz")
+  @@index([quiz_id], map: "idx_responses_quiz")
+  @@map("responses")
+}
+
+model QuizRetakeRequest {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id     String
+  quiz_id     String
+  reason      String?
+  status      String    @default("pending")
+  admin_note  String?
+  reviewed_at DateTime? @db.Timestamptz
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  quiz Quiz @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+
+  @@map("quiz_retake_requests")
+}
+
+model Announcement {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  title       String
+  body        String?
+  type        String? @default("info")
+  target_role String? @default("all")
+  created_by  String?
+
+  // Relations
+  creator       User?              @relation("CreatedAnnouncements", fields: [created_by], references: [id], onDelete: SetNull)
+  notifications UserNotification[]
+
+  @@map("announcements")
+}
+
+model UserNotification {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id         String
+  announcement_id String
+  read            Boolean? @default(false)
+
+  // Relations
+  user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  announcement Announcement @relation(fields: [announcement_id], references: [id], onDelete: Cascade)
+
+  @@map("user_notifications")
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id String
+  message String
+  type    String?  @default("update")
+  read    Boolean? @default(false)
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id], map: "idx_notifications_user")
+  @@map("notifications")
+}
+
+model ContactMessage {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  name    String
+  email   String
+  subject String
+  message String
+
+  @@map("contact_messages")
+}
+
+model NewsletterSubscriber {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  email         String   @unique
+  subscribed_at DateTime @default(now()) @updatedAt @db.Timestamptz
+
+  @@map("newsletter_subscribers")
+}
+
+model UserScoreHistory {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id      String
+  quiz_id      String
+  score        Int      @default(0)
+  total        Int      @default(0)
+  completed_at DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  quiz Quiz @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id], map: "idx_user_score_history_user")
+  @@map("user_score_history")
+}
+
+model UserWeaknessStat {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id         String
+  topic           String
+  total_questions Int?      @default(0)
+  wrong_count     Int?      @default(0)
+  last_updated    DateTime? @default(now()) @updatedAt @db.Timestamptz
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id], map: "idx_user_weakness_stats_user")
+  @@map("user_weakness_stats")
+}
+
+model FlashcardDeck {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  title       String
+  description String?
+  category    String?
+  created_by  String?
+  is_active   Boolean? @default(true)
+
+  // Relations
+  creator    User?       @relation("CreatedFlashcardDecks", fields: [created_by], references: [id], onDelete: SetNull)
+  flashcards Flashcard[]
+
+  @@map("flashcard_decks")
+}
+
+model Flashcard {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  deck_id     String
+  front_text  String
+  back_text   String
+  front_image String?
+  back_image  String?
+  order_index Int?    @default(0)
+
+  // Relations
+  deck FlashcardDeck @relation(fields: [deck_id], references: [id], onDelete: Cascade)
+
+  @@map("flashcards")
+}
+
+model BareAct {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  title      String
+  act_number String?
+  year       Int?
+  category   String?
+  is_active  Boolean? @default(true)
+
+  // Relations
+  sections BareActSection[]
+
+  @@map("bare_acts")
+}
+
+model BareActSection {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  act_id           String
+  section_number   String
+  title            String?
+  content_text     String?
+  explanation_text String?
+  explanation_bn   String?
+  order_index      Int?    @default(0)
+
+  // Relations
+  act BareAct @relation(fields: [act_id], references: [id], onDelete: Cascade)
+
+  @@map("bare_act_sections")
+}
+
+model LegalDictionary {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  term_en       String
+  term_bn       String?
+  definition_en String?
+  definition_bn String?
+  category      String?
+
+  @@map("legal_dictionary")
+}
+
+model CareerResource {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  title        String
+  type         String? @default("job")
+  description  String?
+  location     String?
+  deadline     String?
+  link         String?
+  requirements String?
+
+  @@map("career_resources")
+}
+
+model StudyGroup {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  name        String
+  description String?
+  created_by  String
+  is_public   Boolean? @default(true)
+  max_members Int?     @default(50)
+
+  // Relations
+  creator  User                @relation("CreatedStudyGroups", fields: [created_by], references: [id], onDelete: Cascade)
+  members  StudyGroupMember[]
+  messages StudyGroupMessage[]
+
+  @@map("study_groups")
+}
+
+model StudyGroupMember {
+  id         String   @id @default(uuid())
+  joined_at  DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  group_id String
+  user_id  String
+  role     String? @default("member")
+
+  // Relations
+  group StudyGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([group_id, user_id])
+  @@index([group_id], map: "idx_study_group_members_group")
+  @@map("study_group_members")
+}
+
+model StudyGroupMessage {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  group_id  String
+  user_id   String
+  message   String
+  user_name String?
+
+  // Relations
+  group StudyGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([group_id], map: "idx_study_group_messages_group")
+  @@map("study_group_messages")
+}
+
+model Book {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  title       String
+  description String?
+  author      String?
+  category    String?
+  content     String?
+  file_url    String?
+
+  @@map("books")
+}
+
+model Note {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  title       String
+  description String?
+  category    String?
+  content     String?
+  file_url    String?
+
+  @@map("notes")
+}
+
+model Article {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  title       String
+  description String?
+  author      String?
+  tags        String[]
+  content     String?
+
+  @@map("articles")
+}
+
+model Favorite {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id   String
+  item_id   String
+  item_type String
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, item_id])
+  @@index([user_id], map: "idx_favorites_user")
+  @@map("favorites")
+}
+
+model PastExamQuestion {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  exam_name       String
+  year            Int
+  subject         String?
+  question_text   String
+  frequency_count Int?     @default(1)
+  tags            String[]
+
+  @@map("past_exam_questions")
+}
+
+model DiscussionGroup {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  name               String
+  description        String?
+  type               String  @default("public")
+  created_by         String
+  avatar_url         String?
+  guidelines         String?
+  is_active          Boolean @default(true)
+  max_members        Int?    @default(200)
+  join_mode          String  @default("manual_approval")
+  posting_permission String  @default("everyone")
+
+  // Relations
+  creator     User                   @relation("CreatedDiscussionGroups", fields: [created_by], references: [id], onDelete: Cascade)
+  members     DiscussionMember[]
+  posts       DiscussionPost[]
+  invitations DiscussionInvitation[]
+
+  @@map("discussion_groups")
+}
+
+model DiscussionMember {
+  id         String   @id @default(uuid())
+  joined_at  DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  group_id    String
+  user_id     String
+  role        String    @default("member")
+  status      String    @default("active")
+  muted_until DateTime? @db.Timestamptz
+
+  // Relations
+  group DiscussionGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  user  User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([group_id, user_id])
+  @@index([group_id], map: "idx_discussion_members_group")
+  @@index([user_id], map: "idx_discussion_members_user")
+  @@map("discussion_members")
+}
+
+model DiscussionPost {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  group_id      String
+  author_id     String
+  title         String
+  body          String?
+  is_pinned     Boolean @default(false)
+  best_reply_id String?
+  status        String  @default("active")
+
+  // Relations
+  group   DiscussionGroup   @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  author  User              @relation(fields: [author_id], references: [id], onDelete: Cascade)
+  replies DiscussionReply[]
+
+  @@index([group_id], map: "idx_discussion_posts_group")
+  @@map("discussion_posts")
+}
+
+model DiscussionReply {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  post_id         String
+  author_id       String
+  parent_reply_id String?
+  body            String
+  is_best_answer  Boolean @default(false)
+  status          String  @default("active")
+
+  // Relations
+  post          DiscussionPost    @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  author        User              @relation(fields: [author_id], references: [id], onDelete: Cascade)
+  parent_reply  DiscussionReply?  @relation("ReplyToReply", fields: [parent_reply_id], references: [id], onDelete: Cascade)
+  child_replies DiscussionReply[] @relation("ReplyToReply")
+
+  @@index([post_id], map: "idx_discussion_replies_post")
+  @@map("discussion_replies")
+}
+
+model DiscussionReaction {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  target_type String
+  target_id   String
+  user_id     String
+  reaction    String @default("like")
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([target_type, target_id, user_id, reaction])
+  @@index([target_type, target_id], map: "idx_discussion_reactions_target")
+  @@map("discussion_reactions")
+}
+
+model DiscussionReport {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  reporter_id String
+  target_type String
+  target_id   String
+  reason      String
+  status      String  @default("pending")
+  reviewed_by String?
+  admin_note  String?
+
+  // Relations
+  reporter User  @relation("ReportedDiscussions", fields: [reporter_id], references: [id], onDelete: Cascade)
+  reviewer User? @relation("ReviewedDiscussionReports", fields: [reviewed_by], references: [id], onDelete: SetNull)
+
+  @@map("discussion_reports")
+}
+
+model DiscussionInvitation {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  group_id         String
+  invited_by       String
+  invited_user_id  String?
+  type             String  @default("join_request")
+  status           String  @default("pending")
+  message          String?
+  experience_level String?
+  goal             String?
+  accepted_rules   Boolean @default(false)
+
+  reviewed_at DateTime? @db.Timestamptz
+
+  // Relations
+  group        DiscussionGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  inviter      User            @relation("SentDiscussionInvitations", fields: [invited_by], references: [id], onDelete: Cascade)
+  invited_user User?           @relation("ReceivedDiscussionInvitations", fields: [invited_user_id], references: [id], onDelete: SetNull)
+
+  @@index([group_id], map: "idx_discussion_invitations_group")
+  @@map("discussion_invitations")
+}
+
+model UserToken {
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id         String @id
+  balance         Int    @default(0)
+  lifetime_earned Int    @default(0)
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("user_tokens")
+}
+
+model TokenTransaction {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id  String
+  delta    Int
+  reason   String
+  ref_type String?
+  ref_id   String?
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, reason, ref_type, ref_id], map: "token_tx_idempotent_idx")
+  @@index([user_id, created_at(sort: Desc)], map: "token_tx_user_created_idx")
+  @@map("token_transactions")
+}
+
+model TokenRule {
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  event       String  @id
+  delta       Int
+  description String?
+
+  @@map("token_rules")
+}
+
+model PushPromptEvent {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id String?
+  event   String
+  variant String?
+  meta    Json?   @db.JsonB
+
+  // Relations
+  user User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, created_at(sort: Desc)], map: "idx_push_prompt_events_user")
+  @@index([event, created_at(sort: Desc)], map: "idx_push_prompt_events_event")
+  @@map("push_prompt_events")
+}
