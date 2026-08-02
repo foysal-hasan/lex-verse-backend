@@ -9,6 +9,7 @@ import { RedisModule } from '@nestjs-modules/ioredis';
 import { BullModule } from '@nestjs/bullmq';
 import { PackageModule } from './modules/package/package.module';
 import { QuizModule } from './modules/quiz/quiz.module';
+import { LegalDictionaryModule } from './modules/legal-dictionary/legal-dictionary.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { QuizModule } from './modules/quiz/quiz.module';
     AuthModule,
     PackageModule,
     QuizModule,
+    LegalDictionaryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
