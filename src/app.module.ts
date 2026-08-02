@@ -10,6 +10,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { PackageModule } from './modules/package/package.module';
 import { QuizModule } from './modules/quiz/quiz.module';
 import { LegalDictionaryModule } from './modules/legal-dictionary/legal-dictionary.module';
+import { LegalResearchModule } from './modules/legal-research/legal-research.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { LegalDictionaryModule } from './modules/legal-dictionary/legal-dictiona
     PackageModule,
     QuizModule,
     LegalDictionaryModule,
+    LegalResearchModule,
   ],
   controllers: [AppController],
   providers: [AppService],
