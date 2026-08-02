@@ -18,234 +18,9 @@ datasource db {
   provider = "postgresql"
 }
 
-// enum UserType {
-//   ADMIN
-//   CUSTOMER
-// }
 
-// enum UserStatus {
-//   ACTIVE
-//   BLOCKED
-//   SUSPENDED
-// }
 
-// model User {
-//   id         String   @id @default(cuid())
-//   created_At DateTime @default(now())
-//   updated_At DateTime @updatedAt
-
-//   avatar   String?
-//   email    String   @unique
-//   name     String
-//   type     UserType @default(CUSTOMER)
-//   password String
-
-//   email_verified_at DateTime?  @db.Timestamptz
-//   status            UserStatus @default(ACTIVE)
-
-//   // relations
-//   sessions UserSession[]
-
-//   @@map("users")
-// }
-
-// model UserSession {
-//   id         String   @id @default(cuid())
-//   created_at DateTime @default(now()) @db.Timestamptz
-//   updated_at DateTime @updatedAt @db.Timestamptz
-
-//   user_id     String
-//   user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-//   device_name String
-//   ip_address  String
-//   expires_at  DateTime @db.Timestamptz
-
-//   @@map("user_sessions")
-// }
-
-enum ProgressStatus {
-  not_started
-  in_progress
-  completed
-}
-
-enum ContentType {
-  text
-  video
-  pdf
-  link
-}
-
-model RoadmapStage {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  title       String
-  description String?
-  order_index Int      @default(0)
-  year_level  Int
-  icon        String?  @default("school")
-  is_active   Boolean? @default(true)
-
-  // Relations
-  modules RoadmapModule[]
-
-  // Indexes & Mapping
-  @@index([year_level, order_index], name: "idx_roadmap_stages_order")
-  @@map("roadmap_stages")
-}
-
-model RoadmapModule {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  stage_id         String
-  title            String
-  description      String?
-  content_type     ContentType? @default(text)
-  content_url      String?
-  content_text     String?
-  order_index      Int          @default(0)
-  duration_minutes Int?         @default(0)
-  is_active        Boolean?     @default(true)
-
-  // Relations
-  stage    RoadmapStage          @relation(fields: [stage_id], references: [id], onDelete: Cascade)
-  progress UserRoadmapProgress[]
-
-  // Indexes & Mapping
-  @@index([stage_id, order_index], name: "idx_roadmap_modules_stage")
-  @@map("roadmap_modules")
-}
-
-model UserRoadmapProgress {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  user_id      String
-  module_id    String
-  status       ProgressStatus? @default(not_started)
-  completed_at DateTime?       @db.Timestamptz
-
-  // Relations
-  module RoadmapModule @relation(fields: [module_id], references: [id], onDelete: Cascade)
-  user   User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  // Indexes & Constraints
-  @@unique([user_id, module_id], name: "user_module_unique")
-  @@index([user_id], name: "idx_user_roadmap_progress_user")
-  @@index([module_id], name: "idx_user_roadmap_progress_module")
-  @@map("user_roadmap_progress")
-}
-
-model WrittenSubmission {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  user_id      String
-  quiz_id      String
-  question_id  String
-  file_url     String?
-  file_type    String?   @default("text")
-  answer_text  String?
-  submitted_at DateTime  @default(now()) @db.Timestamptz
-  status       String    @default("pending")
-  score        Decimal?  @default(0) @db.Decimal
-  feedback     String?
-  reviewed_by  String?
-  reviewed_at  DateTime? @db.Timestamptz
-
-  // Relations
-  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  reviewer User?    @relation("ReviewedSubmissions", fields: [reviewed_by], references: [id], onDelete: SetNull)
-  quiz     Quiz     @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
-  question Question @relation(fields: [question_id], references: [id], onDelete: Cascade)
-
-  @@map("written_submissions")
-}
-
-model MentorProfile {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  user_id             String   @unique
-  specialization      String?
-  bio                 String?
-  availability_status String   @default("available")
-  subjects            String[] @default([])
-
-  // Relations
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@map("mentor_profiles")
-}
-
-// Updated MentorQuery Model (added new tracking & priority fields)
-model MentorQuery {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  user_id           String
-  mentor_id         String?
-  subject           String
-  message           String
-  status            String    @default("open")
-  subject_tag       String?
-  priority          String    @default("normal")
-  first_response_at DateTime? @db.Timestamptz
-
-  // Relations
-  replies MentorReply[]
-  ratings MentorRating[]
-  user    User           @relation("UserQueries", fields: [user_id], references: [id], onDelete: Cascade)
-  mentor  User?          @relation("MentorQueries", fields: [mentor_id], references: [id], onDelete: SetNull)
-
-  @@map("mentor_queries")
-}
-
-model MentorReply {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  query_id  String
-  sender_id String
-  message   String
-
-  // Relations
-  query  MentorQuery @relation(fields: [query_id], references: [id], onDelete: Cascade)
-  sender User        @relation(fields: [sender_id], references: [id], onDelete: Cascade)
-
-  @@map("mentor_replies")
-}
-
-model MentorRating {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  query_id  String
-  user_id   String
-  mentor_id String
-  rating    Int
-  comment   String?
-
-  // Relations
-  query  MentorQuery @relation(fields: [query_id], references: [id], onDelete: Cascade)
-  user   User        @relation("UserRatings", fields: [user_id], references: [id], onDelete: Cascade)
-  mentor User        @relation("MentorRatings", fields: [mentor_id], references: [id], onDelete: Cascade)
-
-  // Constraints
-  @@unique([query_id, user_id], name: "query_user_rating_unique")
-  @@map("mentor_ratings")
-}
-
+// =============== User Start ===============
 enum UserRole {
   user
   mentor
@@ -264,60 +39,72 @@ model User {
   updated_at DateTime @updatedAt @db.Timestamptz
 
   name       String
-  email      String   @unique
+  email      String     @unique
   password   String
   avatar_url String?
-  role       UserRole @default(user)
+  role       UserRole   @default(user)
   status     UserStatus @default(ACTIVE)
 
   phone      String?
   university String?
   profession String? @default("student")
   gender     String?
+  year_level Int     @default(0)
 
   email_verified_at DateTime? @db.Timestamptz
 
-  // Relations with other modules
-  written_submissions     WrittenSubmission[]
-  reviewed_submissions    WrittenSubmission[]   @relation("ReviewedSubmissions")
-  mentor_profile          MentorProfile?
-  mentor_queries          MentorQuery[]         @relation("UserQueries")
-  assigned_queries        MentorQuery[]         @relation("MentorQueries")
-  mentor_replies          MentorReply[]
   mentor_ratings_given    MentorRating[]        @relation("UserRatings")
   mentor_ratings_recv     MentorRating[]        @relation("MentorRatings")
   roadmap_progress        UserRoadmapProgress[]
   responses               Response[]
-  quiz_retake_requests    QuizRetakeRequest[]
-  created_announcements   Announcement[]        @relation("CreatedAnnouncements")
+  created_announcements   Announcement[]
   user_notifications      UserNotification[]
   notifications           Notification[]
-  score_history           UserScoreHistory[]
   weakness_stats          UserWeaknessStat[]
   created_flashcard_decks FlashcardDeck[]       @relation("CreatedFlashcardDecks")
-  created_study_groups    StudyGroup[]          @relation("CreatedStudyGroups")
   study_group_members     StudyGroupMember[]
   study_group_messages    StudyGroupMessage[]
   favorites               Favorite[]
-  quizzes                 Quiz[]                @relation("CreatedQuizzes")
+  bar_favorites           BarFavorite[]
 
-  // New Discussion Forum Relations
-  created_discussion_groups       DiscussionGroup[]      @relation("CreatedDiscussionGroups")
-  discussion_memberships          DiscussionMember[]
-  discussion_posts                DiscussionPost[]
-  discussion_replies              DiscussionReply[]
-  discussion_reactions            DiscussionReaction[]
-  discussion_reports              DiscussionReport[]     @relation("ReportedDiscussions")
-  reviewed_discussion_reports     DiscussionReport[]     @relation("ReviewedDiscussionReports")
-  sent_discussion_invitations     DiscussionInvitation[] @relation("SentDiscussionInvitations")
-  received_discussion_invitations DiscussionInvitation[] @relation("ReceivedDiscussionInvitations")
+  package_requests         PackageAccessRequest[] @relation("UserPackageRequests")
+  decided_package_requests PackageAccessRequest[] @relation("DecidedByAdmin")
 
-  // Token System Relations
-  wallet             UserToken?
-  token_transactions TokenTransaction[]
+  push_prompt_events   PushPromptEvent[]
+  user_sessions        UserSession[]
+  user_unlocks         UserUnlock[]
+  bar_responses        BarResponse[]
+  score_histories      UserScoreHistory[]
+  bar_score_histories  BarUserScoreHistory[]
+  created_study_groups StudyGroup[]
+  package_accesses     UserPackageAccess[]   @relation("UserPackageAccesses")
+  granted_accesses     UserPackageAccess[]   @relation("GrantedByAdmin")
+  revoked_accesses     UserPackageAccess[]   @relation("RevokedByAdmin")
 
-  push_prompt_events PushPromptEvent[]
-  user_sessions      UserSession[]
+  subscriptions                      UserSubscription[]
+  articles                           Article[]
+  testimonials                       Testimonial[]
+  fcm_tokens                         FcmToken[]
+  push_preference                    PushPreference?
+  push_logs                          PushLog[]
+  chatbot_rate_limits                ChatbotRateLimit[]
+  course_enrollments                 CourseEnrollment[]
+  course_lesson_progress             CourseLessonProgress[]
+  account_deletions                  AccountDeletion[]
+  account_deletion_attempt           AccountDeletionAttempt?
+  written_exams                      WrittenExam[]
+  bar_written_submissions            BarWrittenSubmission[]
+  note_purchases                     NotePurchase[]
+  quiz_retake_requests               QuizRetakeRequest[]
+  chatbot_sessions                   ChatbotSession[]
+  chatbot_messages                   ChatbotMessage[]
+  written_exam_resubmission_accesses WrittenExamResubmissionAccess[]
+  quiz_allowed_users                 QuizAllowedUser[]
+  written_exam_allowed_users WrittenExamAllowedUser[]
+  download_events DownloadEvent[]
+  written_submissions WrittenSubmission[] @relation("UserWrittenSubmissions")
+  reviewed_submissions WrittenSubmission[] @relation("UserReviewedSubmissions")
+  written_exam_resubmission_requests WrittenExamResubmissionRequest[]
 
   @@map("users")
 }
@@ -336,177 +123,796 @@ model UserSession {
   @@map("user_sessions")
 }
 
-model University {
+model AccountDeletion {
+  id         String   @id @default(uuid())
+  user_id    String
+  email_hash String
+  reason     String?
+  ip_hash    String?
+  user_agent String?
+  deleted_at DateTime @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("account_deletions")
+}
+
+model AccountDeletionAttempt {
+  user_id         String   @id
+  last_attempt_at DateTime @default(now()) @db.Timestamptz
+  attempt_count   Int      @default(1)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("account_deletion_attempts")
+}
+
+// ================ User end ======================
+
+// =============== Package start ==================
+
+enum PkgDuration {
+  monthly
+  m3
+  m6
+  y1
+  y2
+  y3
+}
+
+enum PkgKind {
+  batch
+  free
+  duration
+}
+
+enum PkgProgram {
+  bjs
+  bar
+  llb
+}
+
+enum PkgTrack {
+  preliminary
+  written
+}
+
+// Package Model
+model Package {
+  id                             String       @id @default(uuid())
+  program                        PkgProgram
+  track                          PkgTrack?
+  kind                           PkgKind
+  duration                       PkgDuration?
+  title_bn                       String
+  subtitle_bn                    String?
+  batch_number                   Int?
+  is_active                      Boolean      @default(true)
+  is_coming_soon                 Boolean      @default(false)
+  sort_order                     Int          @default(0)
+  batch_started_at               DateTime?    @db.Timestamptz
+  batch_ended_at                 DateTime?    @db.Timestamptz
+  batch_locks_new_only           Boolean      @default(true)
+  details_json                   Json?        @default("{}") @db.JsonB
+  created_at                     DateTime     @default(now()) @db.Timestamptz
+  updated_at                     DateTime     @default(now()) @db.Timestamptz
+  details_html                   String?
+  allow_program_routine_fallback Boolean      @default(true)
+  includes_all_notes             Boolean      @default(false)
+  includes_all_qbanks            Boolean      @default(false)
+  includes_all_premium           Boolean      @default(false)
+  price_bdt                      Decimal?        @default(0)
+
+  announcements           Announcement[]
+  responses               Response[]
+  bar_responses           BarResponse[]
+  score_histories         UserScoreHistory[]
+  bar_score_histories     BarUserScoreHistory[]
+  content_rules           PackageContentRule[]
+  access_requests         PackageAccessRequest[]
+  user_accesses           UserPackageAccess[]
+  bar_written_submissions BarWrittenSubmission[]
+  written_submissions WrittenSubmission[]
+
+  @@map("packages")
+}
+
+// PackageContentRule Model (Rules for mapping content resources to packages)
+model PackageContentRule {
+  id            String  @id @default(uuid())
+  package_id    String
+  resource_type String
+  match_mode    String
+  match_value   Json    @default("{}") @db.JsonB
+  label         String?
+
+  // Relations
+  package Package @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  @@index([package_id, resource_type], map: "idx_pcr_pkg_type")
+  @@map("package_content_rules")
+}
+
+// Custom Enum for Package Access Request Status
+enum PkgReqStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+// PackageAccessRequest Model (Manual bKash/Payment Request for Packages)
+model PackageAccessRequest {
+  id                  String       @id @default(uuid())
+  user_id             String
+  package_id          String
+  full_name           String
+  phone               String
+  bkash_number        String
+  message             String?
+  status              PkgReqStatus @default(pending)
+  decided_by          String?
+  decided_at          DateTime?    @db.Timestamptz
+  decision_note       String?
+  client_request_uuid String?      @unique
+  created_at          DateTime     @default(now()) @db.Timestamptz
+
+  // Relations
+  user            User    @relation("UserPackageRequests", fields: [user_id], references: [id])
+  package         Package @relation(fields: [package_id], references: [id])
+  decided_by_user User?   @relation("DecidedByAdmin", fields: [decided_by], references: [id])
+
+  granted_accesses UserPackageAccess[]
+
+  @@map("package_access_requests")
+}
+
+// Custom Enum for Package Access Status
+enum PkgAccStatus {
+  active
+  expired
+  revoked
+}
+
+// UserPackageAccess Model (Tracks user package access & subscription lifecycle)
+model UserPackageAccess {
+  id            String       @id @default(uuid())
+  user_id       String
+  package_id    String
+  request_id    String?
+  granted_by    String?
+  granted_at    DateTime?    @default(now()) @db.Timestamptz
+  starts_at     DateTime     @default(now()) @db.Timestamptz
+  expires_at    DateTime?    @db.Timestamptz
+  status        PkgAccStatus @default(active)
+  revoked_by    String?
+  revoked_at    DateTime?    @db.Timestamptz
+  revoke_reason String?
+
+  // Relations
+  user            User                  @relation("UserPackageAccesses", fields: [user_id], references: [id])
+  package         Package               @relation(fields: [package_id], references: [id])
+  request         PackageAccessRequest? @relation(fields: [request_id], references: [id])
+  granted_by_user User?                 @relation("GrantedByAdmin", fields: [granted_by], references: [id])
+  revoked_by_user User?                 @relation("RevokedByAdmin", fields: [revoked_by], references: [id])
+
+  @@unique([user_id, package_id], map: "user_package_access_user_pkg_unique")
+  @@index([user_id, status], map: "idx_upa_user_status")
+  @@map("user_package_access")
+}
+
+model PackageAuditLog {
+  id          String    @id @default(uuid())
+  actor_id    String?
+  action      String
+  target_type String?
+  target_id   String?
+  meta        Json?     @default("{}") @db.JsonB
+  created_at  DateTime? @default(now()) @db.Timestamptz
+
+  @@map("package_audit_log")
+}
+
+model PackageEvent {
+  id         BigInt    @id @default(autoincrement())
+  user_id    String?
+  package_id String?
+  event      String
+  meta       Json?     @default("{}") @db.JsonB
+  created_at DateTime? @default(now()) @db.Timestamptz
+
+  @@index([package_id, event, created_at(sort: Desc)], map: "idx_pkg_events_lookup")
+  @@map("package_events")
+}
+
+model PackageGrantAudit {
+  id              String    @id @default(uuid())
+  grant_id        String
+  package_id      String
+  user_id         String
+  action          String
+  actor_id        String?
+  reason          String?
+  prev_expires_at DateTime? @db.Timestamptz
+  new_expires_at  DateTime? @db.Timestamptz
+  created_at      DateTime  @default(now()) @db.Timestamptz
+
+  @@index([grant_id], map: "idx_pga_grant")
+  @@index([user_id], map: "idx_pga_user")
+  @@index([package_id], map: "idx_pga_pkg")
+  @@map("package_grant_audit")
+}
+
+// UserUnlock Model (Tracks unlocked premium items by users)
+model UserUnlock {
+  id           String   @id @default(uuid())
+  user_id      String
+  item_type    String
+  item_id      String
+  tokens_spent Int
+  created_at   DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, item_type, item_id], map: "user_unlocks_user_id_item_type_item_id_key")
+  @@index([user_id], map: "idx_user_unlocks_user_id")
+  @@index([item_type, item_id], map: "idx_user_unlocks_item")
+  @@map("user_unlocks")
+}
+
+// =============== Package end
+
+// RoadmapStage Model (Stages/Levels within a Roadmap)
+model RoadmapStage {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  order_index Int       @default(0)
+  year_level  Int
+  icon        String?   @default("school")
+  is_active   Boolean?  @default(true)
+  created_at  DateTime? @default(now()) @db.Timestamptz
+  updated_at  DateTime? @default(now()) @db.Timestamptz
+  deleted_at  DateTime? @db.Timestamptz
+  deleted_by  String?
+
+  // Relations
+  modules RoadmapModule[]
+
+  @@index([year_level, order_index], map: "idx_roadmap_stages_order")
+  @@index([deleted_at], map: "idx_roadmap_stages_deleted_at")
+  @@map("roadmap_stages")
+}
+
+// RoadmapModule Model (Modules within a Roadmap Stage)
+model RoadmapModule {
+  id               String    @id @default(uuid())
+  stage_id         String
+  title            String
+  description      String?
+  content_type     String?   @default("text")
+  content_url      String?
+  content_text     String?
+  order_index      Int       @default(0)
+  duration_minutes Int?      @default(0)
+  is_active        Boolean?  @default(true)
+  created_at       DateTime? @default(now()) @db.Timestamptz
+  updated_at       DateTime? @default(now()) @db.Timestamptz
+  deleted_at       DateTime? @db.Timestamptz
+  deleted_by       String?
+
+  // Relations
+  stage         RoadmapStage          @relation(fields: [stage_id], references: [id], onDelete: Cascade)
+  user_progress UserRoadmapProgress[]
+
+  @@index([stage_id, order_index], map: "idx_roadmap_modules_stage")
+  @@index([deleted_at], map: "idx_roadmap_modules_deleted_at")
+  @@map("roadmap_modules")
+}
+
+// UserRoadmapProgress Model (Tracks user progress for each roadmap module)
+model UserRoadmapProgress {
+  id           String    @id @default(uuid())
+  user_id      String
+  module_id    String
+  status       String?   @default("not_started")
+  completed_at DateTime? @db.Timestamptz
+  created_at   DateTime? @default(now()) @db.Timestamptz
+  updated_at   DateTime? @default(now()) @db.Timestamptz
+
+  // Relations
+  user   User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  module RoadmapModule @relation(fields: [module_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, module_id], map: "user_roadmap_progress_user_id_module_id_key")
+  @@index([user_id], map: "idx_user_roadmap_progress_user")
+  @@map("user_roadmap_progress")
+}
+
+model WrittenSubmission {
+  id                      String    @id @default(uuid())
+  user_id                 String
+  quiz_id                 String?
+  question_id             String?
+  file_url                String?
+  file_type               String?   @default("image")
+  answer_text             String?
+  submitted_at            DateTime? @default(now()) @db.Timestamptz
+  status                  String?   @default("pending")
+  score                   Decimal?  @default(0)
+  feedback                String?
+  reviewed_by             String?
+  reviewed_at             DateTime? @db.Timestamptz
+  exam_id                 String?
+  deleted_at              DateTime? @db.Timestamptz
+  feedback_breakdown      Json?
+  resubmission_request_id String?
+  submission_cycle        Int       @default(1) @db.SmallInt
+  prior_evaluations       Json?
+  package_id              String?
+
+  quiz     Quiz?        @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+  exam     WrittenExam? @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  package  Package?     @relation(fields: [package_id], references: [id], onDelete: SetNull)
+  user     User         @relation("UserWrittenSubmissions", fields: [user_id], references: [id], onDelete: Cascade)
+  reviewer User?        @relation("UserReviewedSubmissions", fields: [reviewed_by], references: [id])
+  question Question?      @relation(fields: [question_id], references: [id], onDelete: SetNull)
+  
+
+  @@index([user_id], map: "idx_written_submissions_user")
+  @@index([quiz_id], map: "idx_written_submissions_quiz")
+  @@index([status], map: "idx_written_submissions_status")
+  @@index([user_id, exam_id, package_id], map: "ws_user_exam_pkg_idx")
+  @@index([exam_id, package_id], map: "ws_exam_pkg_idx")
+  @@index([user_id, quiz_id, package_id], map: "idx_ws_user_quiz_pkg")
+  @@index([resubmission_request_id], map: "idx_ws_resub_req")
+  @@map("written_submissions")
+}
+
+model MentorProfile {
+  id                  String   @id @default(uuid())
+  user_id             String
+  specialization      String?
+  bio                 String?
+  availability_status String?  @default("available")
+  created_at          DateTime @default(now()) @db.Timestamptz
+  subjects            String[] @default([])
+
+  queries MentorQuery[]
+
+  @@map("mentor_profiles")
+}
+
+model MentorQuery {
+  id                String    @id @default(uuid())
+  user_id           String
+  mentor_id         String?
+  subject           String
+  message           String
+  status            String?   @default("open")
+  created_at        DateTime? @default(now()) @db.Timestamptz
+  priority          String?   @default("normal")
+  subject_tag       String?
+  first_response_at DateTime? @db.Timestamptz
+
+  mentor  MentorProfile? @relation(fields: [mentor_id], references: [id], onDelete: SetNull)
+  replies MentorReply[]
+
+  @@index([user_id], map: "idx_mentor_queries_user")
+  @@map("mentor_queries")
+}
+
+model MentorReply {
+  id         String    @id @default(uuid())
+  query_id   String
+  sender_id  String
+  message    String
+  created_at DateTime? @default(now()) @db.Timestamptz
+
+  query MentorQuery @relation(fields: [query_id], references: [id], onDelete: Cascade)
+
+  @@index([query_id], map: "idx_mentor_replies_query")
+  @@map("mentor_replies")
+}
+
+model MentorRating {
   id         String   @id @default(uuid())
   created_at DateTime @default(now()) @db.Timestamptz
   updated_at DateTime @updatedAt @db.Timestamptz
 
-  name String  @unique
-  type String? @default("other")
+  query_id  String
+  user_id   String
+  mentor_id String
+  rating    Int
+  comment   String?
+
+  user   User @relation("UserRatings", fields: [user_id], references: [id], onDelete: Cascade)
+  mentor User @relation("MentorRatings", fields: [mentor_id], references: [id], onDelete: Cascade)
+
+  // Constraints
+  @@unique([query_id, user_id], name: "query_user_rating_unique")
+  @@map("mentor_ratings")
+}
+
+
+model University {
+  id         String   @id @default(uuid())
+  name       String
+  type       String?  @default("other")
+  created_at DateTime @default(now()) @db.Timestamptz
 
   @@map("universities")
 }
 
 model Quiz {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  title                String
-  description          String    @default("")
-  status               String    @default("upcoming")
+  id                   String    @id @default(uuid())
+  title                String?
+  description          String?
+  time_limit           Int?
   created_by           String?
-  time_limit           Int?      @default(30)
-  total_questions      Int?      @default(0)
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  status               String?   @default("upcoming")
   has_negative_marking Boolean?  @default(false)
+  allow_answer_change  Boolean   @default(false)
+  negative_mark_value  Decimal   @default(0.25)
+  program_type         String?   @default("general")
+  exam_type            String?   @default("preliminary")
+  is_live              Boolean?  @default(false)
+  live_start_time      DateTime? @db.Timestamptz
+  live_end_time        DateTime? @db.Timestamptz
+  is_premium           Boolean?  @default(false)
+  archive_pdf_url      String?
+  subject_tag          String?
+  prerequisite_quiz_id String?
+  program_types        String[]  @default(["bjs"])
+  subject_category     String?
+  total_questions      Int?
+  total_marks          Decimal?
+  cut_mark_percent     Decimal?
+  exam_date            DateTime? @db.Timestamptz
   syllabus_no          String?
-  total_marks          Int?
-  exam_date            DateTime? @db.Date
-  cut_mark_percent     Int?      @default(50)
-  batch_number         Int?
+  updated_at           DateTime  @default(now()) @db.Timestamptz
+  deleted_at           DateTime? @db.Timestamptz
+  deleted_by           String?
   batch_title          String?
+  batch_number         Int?
+  access_type          String    @default("open")
+  reminder_sent_at     DateTime? @db.Timestamptz
+  exam_track           String?
+  routine_no           String?
+  instructions         String?
+  access_mode          String    @default("public")
+  is_free_demo         Boolean?  @default(false)
 
-  allow_answer_change Boolean @default(false)
+  // Self-relation
+  prerequisite_quiz       Quiz?                  @relation("QuizPrerequisites", fields: [prerequisite_quiz_id], references: [id], onDelete: SetNull)
+  prerequisite_for        Quiz[]                 @relation("QuizPrerequisites")
+  bar_written_submissions BarWrittenSubmission[]
+  daily_tasks             DailyTask[]
+  exam_archive_pdf        ExamArchivePdf?
 
-  // Relations
-  creator             User?               @relation("CreatedQuizzes", fields: [created_by], references: [id], onDelete: SetNull)
-  created_quizzes     Quiz[]              @relation("CreatedQuizzes")
-  questions           Question[]
+  // relations
+  quiz_retake_requests QuizRetakeRequest[]
+  quiz_allowed_users   QuizAllowedUser[]
+  bar_responses BarResponse[]
   written_submissions WrittenSubmission[]
-  responses           Response[]
+  questions Question[]
+  responses Response[]
+  user_score_history UserScoreHistory[]
+  bar_user_score_history BarUserScoreHistory[]
+  
 
-  // New Relation added
-  retake_requests QuizRetakeRequest[]
-  score_history   UserScoreHistory[]
-  quiz            Quiz?               @relation("CreatedQuizzes", fields: [quizId], references: [id])
-  quizId          String?
-
-  // Indexes
-  @@index([batch_number(sort: Desc)], map: "idx_quizzes_batch_number")
+  @@index([exam_type, exam_track], map: "idx_quizzes_exam_type_track")
+  @@index([program_type, exam_type], map: "idx_quizzes_program_exam")
+  @@index([live_start_time, live_end_time], map: "idx_quizzes_live_window")
+  @@index([program_types], type: Gin, map: "idx_quizzes_program_types")
+  @@index([deleted_at], map: "idx_quizzes_deleted_at")
+  @@index([access_type], map: "idx_quizzes_access_type")
   @@map("quizzes")
 }
 
+model QuizAllowedUser {
+  id         String   @id @default(uuid())
+  quiz_id    String
+  user_id    String
+  granted_by String?
+  granted_at DateTime @default(now()) @db.Timestamptz
+
+  quiz Quiz @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([quiz_id, user_id], map: "quiz_allowed_users_quiz_id_user_id_key")
+  @@index([user_id], map: "idx_qau_user")
+  @@index([quiz_id], map: "idx_qau_quiz")
+  @@index([quiz_id, user_id], map: "idx_qau_quiz_user")
+  @@map("quiz_allowed_users")
+}
+
+// Question Model
 model Question {
   id         String   @id @default(uuid())
   created_at DateTime @default(now()) @db.Timestamptz
   updated_at DateTime @updatedAt @db.Timestamptz
 
-  quiz_id           String
-  question_text     String
-  question_type     String?  @default("mcq")
+  quiz_id           String?
+  options           Json?     @db.Json
+  correct_answer    String?
+  question_text     String?
+  time_limit        Int?      @default(30)
+  question_type     String?   @default("mcq")
   question_image    String?
-  options           Json     @default("[]")
-  correct_answer    String
   explanation_text  String?
-  explanation_image String?
   explanation_math  String?
-  time_limit        Int?     @default(30)
-  negative_marks    Decimal? @default(0) @db.Decimal
+  explanation_image String?
+  negative_marks    Decimal?  @default(0) @db.Decimal
+  deleted_at        DateTime? @db.Timestamptz
+  deleted_by        String?
+  section_id        String?
+  section_position  Int?
 
   // Relations
-  quiz        Quiz                @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
-  submissions WrittenSubmission[]
-  responses   Response[]
+  section ExamSection? @relation(fields: [section_id], references: [id], onDelete: SetNull)
+  quiz    Quiz?        @relation(fields: [quiz_id], references: [id], onDelete: SetNull)
 
-  @@index([quiz_id], map: "idx_questions_quiz")
+  submissions   WrittenSubmission[]
+  responses     Response[]
+  bar_responses BarResponse[]
+
+  @@index([quiz_id, section_id, section_position], map: "idx_questions_quiz_section")
+  @@index([deleted_at], map: "idx_questions_deleted_at")
   @@map("questions")
 }
 
-model Response {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  user_id         String
-  quiz_id         String
-  question_id     String
-  selected_answer String
-  is_correct      Boolean @default(false)
+model ExamSection {
+  id String @id @default(uuid())
 
   // Relations
-  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  quiz     Quiz     @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
-  question Question @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  questions Question[]
 
-  @@index([user_id, quiz_id], map: "idx_responses_user_quiz")
-  @@index([quiz_id], map: "idx_responses_quiz")
+  @@map("exam_sections")
+}
+
+// Response Model (Stores user answers for quiz/question bank items)
+model Response {
+  id               String   @id @default(uuid())
+  quiz_id          String?
+  user_id          String?
+  question_id      String?
+  selected_answer  String?
+  is_correct       Boolean?
+  created_at       DateTime @default(now()) @db.Timestamptz
+  question_bank_id String?  
+  package_id       String?  
+
+  // Relations
+  package       Package?      @relation(fields: [package_id], references: [id], onDelete: SetNull)
+  user          User?         @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  quiz          Quiz?         @relation(fields: [quiz_id], references: [id], onDelete: SetNull)
+  question      Question?     @relation(fields: [question_id], references: [id], onDelete: SetNull)
+  question_bank QuestionBank? @relation(fields: [question_bank_id], references: [id], onDelete: SetNull)
+
+  @@index([question_bank_id], map: "responses_qb_idx")
+  @@index([user_id, quiz_id, package_id], map: "responses_user_quiz_pkg_idx")
+  @@index([quiz_id, package_id], map: "responses_quiz_pkg_idx")
+  @@index([quiz_id, user_id], map: "idx_responses_quiz_user")
   @@map("responses")
 }
 
-model QuizRetakeRequest {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  user_id     String
-  quiz_id     String
-  reason      String?
-  status      String    @default("pending")
-  admin_note  String?
-  reviewed_at DateTime? @db.Timestamptz
+// BarResponse Model (Stores Bar Exam response analytics)
+model BarResponse {
+  id               String   @id @default(uuid())
+  user_id          String?
+  quiz_id          String
+  question_id      String
+  selected_answer  String
+  is_correct       Boolean  @default(false)
+  created_at       DateTime @default(now()) @db.Timestamptz
+  question_bank_id String?  
+  package_id       String?  
 
   // Relations
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  quiz Quiz @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+  package       Package?      @relation(fields: [package_id], references: [id], onDelete: SetNull)
+  user          User?         @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  quiz          Quiz          @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+  question      Question      @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  question_bank QuestionBank? @relation(fields: [question_bank_id], references: [id], onDelete: SetNull)
 
+  @@index([question_bank_id], map: "bar_responses_qb_idx")
+  @@index([user_id, quiz_id, package_id], map: "bar_responses_user_quiz_pkg_idx")
+  @@index([quiz_id, package_id], map: "bar_responses_quiz_pkg_idx")
+  @@index([user_id, quiz_id], map: "idx_bar_responses_user_quiz")
+  @@index([quiz_id], map: "idx_bar_responses_quiz")
+  @@index([question_id], map: "idx_bar_responses_question")
+  @@index([quiz_id, user_id], map: "idx_bar_responses_quiz_user")
+  @@map("bar_responses")
+}
+
+model QuestionBank {
+  id                  String    @id @default(uuid())
+  program_type        String
+  exam_type           String
+  title               String
+  pdf_url             String?
+  is_premium          Boolean?  @default(false)
+  year                Int?
+  subject             String?
+  created_at          DateTime  @default(now()) @db.Timestamptz
+  deleted_at          DateTime? @db.Timestamptz
+  deleted_by          String?
+  content_type        String    @default("question_answer")
+  access_type         String    @default("free")
+  pdf_path            String?
+  original_filename   String?
+  file_size_bytes     BigInt?
+  description         String?
+  tags                String[]  @default([])
+  is_published        Boolean   @default(true)
+  updated_at          DateTime  @default(now()) @db.Timestamptz
+  is_featured         Boolean   @default(false)
+  sort_order          Int       @default(0)
+  download_count      Int       @default(0)
+  last_downloaded_at  DateTime? @db.Timestamptz
+  is_token_unlockable Boolean   @default(false)
+  token_price         Int       @default(0)
+  tier                String    @default("free")
+  price_bdt           Int       @default(0)
+  allow_download      Boolean   @default(true)
+
+  // Relations
+  responses               Response[]
+  bar_responses           BarResponse[]
+  question_bank_purchases QuestionBankPurchase[]
+
+  @@index([deleted_at], map: "idx_question_banks_deleted_at")
+  @@index([tier], map: "idx_question_banks_tier")
+  @@index([program_type], map: "qb_program_idx")
+  @@index([exam_type], map: "qb_exam_idx")
+  @@index([content_type], map: "qb_content_idx")
+  @@index([access_type], map: "qb_access_idx")
+  @@index([year], map: "qb_year_idx")
+  @@index([is_published], map: "qb_published_idx")
+  @@index([is_featured], map: "qb_featured_idx")
+  @@index([sort_order], map: "qb_sort_idx")
+  @@map("question_banks")
+}
+
+model QuestionBankPurchase {
+  id                String    @id @default(uuid())
+  user_id           String
+  question_bank_id  String
+  status            String    @default("pending")
+  price_bdt         Int       @default(0)
+  payment_method    String?
+  payment_reference String?
+  admin_note        String?
+  reviewed_by       String?
+  reviewed_at       DateTime? @db.Timestamptz
+  created_at        DateTime  @default(now()) @db.Timestamptz
+  updated_at        DateTime  @default(now()) @db.Timestamptz
+  amount_bdt        Int       @default(0)
+  payment_ref       String?
+
+  question_bank QuestionBank @relation(fields: [question_bank_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, question_bank_id])
+  @@index([user_id], map: "idx_qbp_user")
+  @@index([question_bank_id], map: "idx_qbp_qb")
+  @@index([status], map: "idx_qbp_status")
+  @@map("question_bank_purchases")
+}
+
+model QuizRetakeRequest {
+  id              String    @id @default(uuid())
+  user_id         String
+  quiz_id         String
+  reason          String?
+  status          String    @default("pending")
+  admin_note      String?
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  reviewed_at     DateTime? @db.Timestamptz
+  exam_session_id String?
+
+  user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  quiz         Quiz         @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, quiz_id], map: "idx_retake_requests_user_quiz")
+  @@index([status], map: "idx_retake_requests_status")
   @@map("quiz_retake_requests")
 }
 
+// Announcement Model
 model Announcement {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
+  id         String    @id @default(uuid())
+  created_at DateTime? @default(now()) @db.Timestamptz
 
   title       String
   body        String?
-  type        String? @default("info")
-  target_role String? @default("all")
+  type        String?   @default("general")
+  target_role String?   @default("all")
   created_by  String?
+  link        String?
+  category    String?
+  deleted_at  DateTime? @db.Timestamptz
+  deleted_by  String?
+  package_id  String?
+  program     String?
+  package_ids String[]  @default([])
+  is_pinned   Boolean?  @default(false)
 
   // Relations
-  creator       User?              @relation("CreatedAnnouncements", fields: [created_by], references: [id], onDelete: SetNull)
-  notifications UserNotification[]
+  creator            User?              @relation(fields: [created_by], references: [id], onDelete: SetNull)
+  package            Package?           @relation(fields: [package_id], references: [id], onDelete: Cascade)
+  user_notifications UserNotification[]
 
+  @@index([package_ids], map: "idx_announcements_package_ids")
+  @@index([package_id], map: "announcements_package_id_idx")
+  @@index([program], map: "announcements_program_idx")
+  @@index([deleted_at], map: "idx_announcements_deleted_at")
   @@map("announcements")
 }
 
-model UserNotification {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
 
+
+model UserTokensArchive202605 {
+  user_id         String   @id @default(uuid())
+  balance         Int      @default(0)
+  lifetime_earned Int      @default(0)
+  updated_at      DateTime @default(now()) @db.Timestamptz
+
+  @@map("user_tokens_archive_2026_05")
+}
+
+model TokenTransactionsArchive202605 {
+  id         String   @id @default(uuid())
+  user_id    String
+  delta      Int
+  reason     String
+  ref_type   String?
+  ref_id     String?
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  @@index([user_id, created_at(sort: Desc)], map: "token_transactions_archive_2026_05_user_id_created_at_idx")
+  @@map("token_transactions_archive_2026_05")
+}
+
+model UserNotification {
+  id              String    @id @default(uuid())
   user_id         String
   announcement_id String
-  read            Boolean? @default(false)
+  read            Boolean?  @default(false)
+  created_at      DateTime? @default(now()) @db.Timestamptz
 
   // Relations
   user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
   announcement Announcement @relation(fields: [announcement_id], references: [id], onDelete: Cascade)
 
+  @@unique([user_id, announcement_id], map: "user_notifications_user_id_announcement_id_key")
   @@map("user_notifications")
 }
 
 model Notification {
   id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  user_id String
-  message String
-  type    String?  @default("update")
-  read    Boolean? @default(false)
+  user_id    String?
+  message    String?
+  read       Boolean? @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz
+  type       String?
+  link       String?
+  category   String?
+  title      String?
+  actor_name String?
 
   // Relations
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@index([user_id], map: "idx_notifications_user")
+  @@index([user_id, created_at(sort: Desc)], map: "idx_notifications_user_created")
   @@map("notifications")
 }
 
 model ContactMessage {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
+  id         String    @id @default(uuid())
+  created_at DateTime? @default(now()) @db.Timestamptz
 
   name    String
   email   String
@@ -517,10 +923,7 @@ model ContactMessage {
 }
 
 model NewsletterSubscriber {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
+  id            String   @id @default(uuid())
   email         String   @unique
   subscribed_at DateTime @default(now()) @updatedAt @db.Timestamptz
 
@@ -528,64 +931,69 @@ model NewsletterSubscriber {
 }
 
 model UserScoreHistory {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
+  id           String    @id @default(uuid())
   user_id      String
   quiz_id      String
-  score        Int      @default(0)
-  total        Int      @default(0)
-  completed_at DateTime @default(now()) @db.Timestamptz
+  score        Int
+  total        Int
+  completed_at DateTime? @default(now()) @db.Timestamptz
+  net_score    Decimal?  @db.Decimal(7, 2)
+  accuracy     Decimal?  @db.Decimal(5, 2)
+  package_id   String?   
 
   // Relations
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  quiz Quiz @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  quiz    Quiz     @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+  package Package? @relation(fields: [package_id], references: [id], onDelete: SetNull)
 
-  @@index([user_id], map: "idx_user_score_history_user")
+  @@index([user_id, quiz_id, package_id], map: "ush_user_quiz_pkg_idx")
+  @@index([quiz_id, package_id], map: "ush_quiz_pkg_idx")
+  @@index([quiz_id, net_score(sort: Desc), accuracy(sort: Desc), completed_at], map: "idx_ush_quiz_rank")
   @@map("user_score_history")
 }
 
 model UserWeaknessStat {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
+  id              String    @id @default(uuid())
   user_id         String
   topic           String
   total_questions Int?      @default(0)
   wrong_count     Int?      @default(0)
-  last_updated    DateTime? @default(now()) @updatedAt @db.Timestamptz
+  last_updated    DateTime? @default(now()) @db.Timestamptz
 
   // Relations
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@index([user_id], map: "idx_user_weakness_stats_user")
+  @@unique([user_id, topic], map: "user_weakness_stats_user_id_topic_key")
   @@map("user_weakness_stats")
 }
 
 model FlashcardDeck {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
+  id         String    @id @default(uuid())
+  created_at DateTime? @default(now()) @db.Timestamptz
+  updated_at DateTime? @updatedAt @db.Timestamptz
 
-  title       String
-  description String?
-  category    String?
-  created_by  String?
-  is_active   Boolean? @default(true)
+  title          String
+  description    String?
+  category       String?
+  created_by     String?
+  is_active      Boolean?  @default(true)
+  deleted_at     DateTime? @db.Timestamptz
+  deleted_by     String?
+  allow_download Boolean   @default(false)
 
   // Relations
   creator    User?       @relation("CreatedFlashcardDecks", fields: [created_by], references: [id], onDelete: SetNull)
   flashcards Flashcard[]
 
+  @@index([deleted_at], map: "idx_flashcard_decks_deleted_at")
   @@map("flashcard_decks")
 }
 
+// Flashcard Model
 model Flashcard {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
+  id         String    @id @default(uuid())
+  created_at DateTime? @default(now()) @db.Timestamptz
+  deleted_at DateTime? @db.Timestamptz
 
   deck_id     String
   front_text  String
@@ -593,60 +1001,81 @@ model Flashcard {
   front_image String?
   back_image  String?
   order_index Int?    @default(0)
+  deleted_by  String?
 
   // Relations
   deck FlashcardDeck @relation(fields: [deck_id], references: [id], onDelete: Cascade)
 
+  @@index([deleted_at], map: "idx_flashcards_deleted_at")
   @@map("flashcards")
 }
 
+// BareAct Model (Legal Bare Acts and Documents)
 model BareAct {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @updatedAt @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  title      String
-  act_number String?
-  year       Int?
-  category   String?
-  is_active  Boolean? @default(true)
+  id                String                   @id @default(uuid())
+  title             String
+  category          String?
+  is_active         Boolean?                 @default(true)
+  created_at        DateTime?                @default(now()) @db.Timestamptz
+  updated_at        DateTime?                @default(now()) @db.Timestamptz
+  pdf_url           String?
+  download_url      String?
+  deleted_at        DateTime?                @db.Timestamptz
+  deleted_by        String?                  
+  source_type       String                   @default("text")
+  content_html      String?
+  content_plain     String?
+  pdf_path          String?
+  generated_pdf_url String?
+  search_vector     Unsupported("tsvector")?
+  allow_download    Boolean                  @default(true)
 
   // Relations
   sections BareActSection[]
 
+  @@index([deleted_at], map: "idx_bare_acts_deleted_at")
+  @@index([search_vector], map: "bare_acts_search_idx")
   @@map("bare_acts")
 }
 
+// BareActSection Model (Sections within a Bare Act)
 model BareActSection {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  act_id           String
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) 
+  act_id           String    
   section_number   String
   title            String?
   content_text     String?
   explanation_text String?
   explanation_bn   String?
-  order_index      Int?    @default(0)
+  order_index      Int?      @default(0)
+  created_at       DateTime? @default(now()) @db.Timestamptz
+  deleted_at       DateTime? @db.Timestamptz
+  deleted_by       String?   
 
   // Relations
   act BareAct @relation(fields: [act_id], references: [id], onDelete: Cascade)
 
+  @@index([act_id, order_index], map: "idx_bare_act_sections_act")
+  @@index([deleted_at], map: "idx_bare_act_sections_deleted_at")
   @@map("bare_act_sections")
 }
 
+// Legal Dictionary Model
 model LegalDictionary {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
+  id         String    @id @default(uuid())
+  created_at DateTime? @default(now()) @db.Timestamptz
 
   term_en       String
   term_bn       String?
   definition_en String?
   definition_bn String?
   category      String?
+  deleted_at    DateTime? @db.Timestamptz
+  deleted_by    String?   
 
+  @@index([term_en], map: "idx_legal_dictionary_term")
+  @@index([category], map: "idx_legal_dictionary_category")
+  @@index([deleted_at], map: "idx_legal_dictionary_deleted_at")
   @@map("legal_dictionary")
 }
 
@@ -666,58 +1095,73 @@ model CareerResource {
   @@map("career_resources")
 }
 
-model StudyGroup {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
+// model StudyGroup {
+//   id         String   @id @default(uuid())
+//   created_at DateTime @default(now()) @db.Timestamptz
+//   updated_at DateTime @updatedAt @db.Timestamptz
 
+//   name        String
+//   description String?
+//   created_by  String
+//   is_public   Boolean? @default(true)
+//   max_members Int?     @default(50)
+
+//   // Relations
+//   creator  User                @relation("CreatedStudyGroups", fields: [created_by], references: [id], onDelete: Cascade)
+//   members  StudyGroupMember[]
+//   messages StudyGroupMessage[]
+
+//   @@map("study_groups")
+// }
+
+// StudyGroup Model
+model StudyGroup {
+  id          String    @id @default(uuid())
   name        String
   description String?
   created_by  String
-  is_public   Boolean? @default(true)
-  max_members Int?     @default(50)
+  is_public   Boolean?  @default(true)
+  max_members Int?      @default(50)
+  created_at  DateTime? @default(now()) @db.Timestamptz
 
   // Relations
-  creator  User                @relation("CreatedStudyGroups", fields: [created_by], references: [id], onDelete: Cascade)
+  creator  User                @relation(fields: [created_by], references: [id], onDelete: Cascade)
   members  StudyGroupMember[]
   messages StudyGroupMessage[]
 
   @@map("study_groups")
 }
 
+// StudyGroupMember Model (Junction Table for Study Group Membership)
 model StudyGroupMember {
-  id         String   @id @default(uuid())
-  joined_at  DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  group_id String
-  user_id  String
-  role     String? @default("member")
+  id        String    @id @default(uuid())
+  group_id  String
+  user_id   String
+  role      String?   @default("member")
+  joined_at DateTime? @default(now()) @db.Timestamptz
 
   // Relations
   group StudyGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
   user  User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@unique([group_id, user_id])
+  @@unique([group_id, user_id], map: "study_group_members_group_id_user_id_key")
   @@index([group_id], map: "idx_study_group_members_group")
   @@map("study_group_members")
 }
 
+// StudyGroupMessage Model (Chat messages within a Study Group)
 model StudyGroupMessage {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  group_id  String
-  user_id   String
-  message   String
-  user_name String?
+  id         String    @id @default(uuid())
+  group_id   String
+  user_id    String
+  message    String
+  created_at DateTime? @default(now()) @db.Timestamptz
 
   // Relations
   group StudyGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
   user  User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@index([group_id], map: "idx_study_group_messages_group")
+  @@index([group_id, created_at], map: "idx_study_group_messages_group")
   @@map("study_group_messages")
 }
 
@@ -736,105 +1180,120 @@ model Book {
   @@map("books")
 }
 
-model Note {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  title       String
-  description String?
-  category    String?
-  content     String?
-  file_url    String?
-
-  @@map("notes")
-}
-
 model Article {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
+  id               String    @id @default(uuid())
+  title            String
+  slug             String    @unique
+  description      String?
+  content          String?
+  cover_image      String?
+  author           String?
+  author_id        String?
+  tags             String[]
+  published_at     DateTime? @db.Timestamptz
+  created_at       DateTime  @default(now()) @db.Timestamptz
+  updated_at       DateTime  @default(now()) @db.Timestamptz
+  excerpt          String?
+  banner_image_url String?
+  author_image     String?
+  category         String?
+  is_published     Boolean   @default(false)
+  meta_title       String?
+  meta_description String?
+  keywords         String[]
+  read_minutes     Int?
+  view_count       Int       @default(0)
 
-  title       String
-  description String?
-  author      String?
-  tags        String[]
-  content     String?
+  user User? @relation(fields: [author_id], references: [id], onDelete: SetNull)
 
+  @@index([is_published, published_at(sort: Desc)], map: "articles_published_at_idx")
+  @@index([category], map: "articles_category_idx")
+  @@index([tags], type: Gin, map: "articles_tags_gin")
   @@map("articles")
 }
 
 model Favorite {
   id         String   @id @default(uuid())
+  user_id    String
+  item_id    String
+  item_type  String
   created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
 
-  user_id   String
-  item_id   String
-  item_type String
-
-  // Relations
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@unique([user_id, item_id])
-  @@index([user_id], map: "idx_favorites_user")
+  @@unique([user_id, item_id, item_type])
+  @@index([user_id, item_type], map: "idx_favorites_user_type")
   @@map("favorites")
 }
 
-model PastExamQuestion {
+model BarFavorite {
   id         String   @id @default(uuid())
+  user_id    String
+  item_id    String
+  item_type  String
   created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
 
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, item_id, item_type])
+  @@index([user_id], map: "idx_bar_fav_user")
+  @@map("bar_favorites")
+}
+
+model PastExamQuestions {
+  id              String    @id @default(uuid())
   exam_name       String
   year            Int
   subject         String?
   question_text   String
-  frequency_count Int?     @default(1)
+  frequency_count Int?      @default(1)
   tags            String[]
+  created_at      DateTime? @default(now()) @db.Timestamptz
+  deleted_at      DateTime? @db.Timestamptz
+  deleted_by      String?
 
+  @@index([subject, year], map: "idx_past_exam_questions_subject")
+  @@index([deleted_at], map: "idx_past_exam_questions_deleted_at")
   @@map("past_exam_questions")
 }
 
 model DiscussionGroup {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
+  id                 String   @id @default(uuid())
   name               String
   description        String?
-  type               String  @default("public")
+  type               String   @default("public")
   created_by         String
   avatar_url         String?
   guidelines         String?
-  is_active          Boolean @default(true)
-  max_members        Int?    @default(200)
-  join_mode          String  @default("manual_approval")
-  posting_permission String  @default("everyone")
+  is_active          Boolean  @default(true)
+  max_members        Int?     @default(100)
+  created_at         DateTime @default(now()) @db.Timestamptz
+  updated_at         DateTime @default(now()) @db.Timestamptz
+  join_mode          String   @default("manual_approval")
+  posting_permission String   @default("everyone")
+  category           String?
+  tags               String[] @default([])
 
-  // Relations
-  creator     User                   @relation("CreatedDiscussionGroups", fields: [created_by], references: [id], onDelete: Cascade)
-  members     DiscussionMember[]
+  // relations
   posts       DiscussionPost[]
   invitations DiscussionInvitation[]
+  members     DiscussionMember[]
 
+  @@index([tags], type: Gin, map: "idx_dg_tags")
   @@map("discussion_groups")
 }
 
 model DiscussionMember {
-  id         String   @id @default(uuid())
-  joined_at  DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
+  id          String    @id @default(uuid())
   group_id    String
   user_id     String
   role        String    @default("member")
   status      String    @default("active")
   muted_until DateTime? @db.Timestamptz
+  joined_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at  DateTime  @default(now()) @db.Timestamptz
 
-  // Relations
   group DiscussionGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
-  user  User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([group_id, user_id])
   @@index([group_id], map: "idx_discussion_members_group")
@@ -843,42 +1302,41 @@ model DiscussionMember {
 }
 
 model DiscussionPost {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
+  id            String                   @id @default(uuid())
   group_id      String
   author_id     String
   title         String
   body          String?
-  is_pinned     Boolean @default(false)
+  is_pinned     Boolean                  @default(false)
   best_reply_id String?
-  status        String  @default("active")
+  status        String                   @default("active")
+  created_at    DateTime                 @default(now()) @db.Timestamptz
+  updated_at    DateTime                 @default(now()) @db.Timestamptz
+  category      String?
+  tags          String[]                 @default([])
+  search_vector Unsupported("tsvector")?
 
-  // Relations
-  group   DiscussionGroup   @relation(fields: [group_id], references: [id], onDelete: Cascade)
-  author  User              @relation(fields: [author_id], references: [id], onDelete: Cascade)
+  group DiscussionGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
+
+  // relations
   replies DiscussionReply[]
 
   @@index([group_id], map: "idx_discussion_posts_group")
+  @@index([tags], type: Gin, map: "idx_dp_tags")
   @@map("discussion_posts")
 }
 
 model DiscussionReply {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
+  id              String   @id @default(uuid())
   post_id         String
   author_id       String
   parent_reply_id String?
   body            String
-  is_best_answer  Boolean @default(false)
-  status          String  @default("active")
+  is_best_answer  Boolean  @default(false)
+  status          String   @default("active")
+  created_at      DateTime @default(now()) @db.Timestamptz
 
-  // Relations
   post          DiscussionPost    @relation(fields: [post_id], references: [id], onDelete: Cascade)
-  author        User              @relation(fields: [author_id], references: [id], onDelete: Cascade)
   parent_reply  DiscussionReply?  @relation("ReplyToReply", fields: [parent_reply_id], references: [id], onDelete: Cascade)
   child_replies DiscussionReply[] @relation("ReplyToReply")
 
@@ -887,110 +1345,82 @@ model DiscussionReply {
 }
 
 model DiscussionReaction {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
+  id          String   @id @default(uuid())
   target_type String
-  target_id   String
-  user_id     String
-  reaction    String @default("like")
+  target_id   String   
+  user_id     String   
+  reaction    String   @default("like")
+  created_at  DateTime @default(now()) @db.Timestamptz
 
-  // Relations
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@unique([target_type, target_id, user_id, reaction])
+  @@unique([target_type, target_id, user_id, reaction], map: "discussion_reactions_target_type_target_id_user_id_reaction_key")
   @@index([target_type, target_id], map: "idx_discussion_reactions_target")
   @@map("discussion_reactions")
 }
 
 model DiscussionReport {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
+  id          String   @id @default(uuid())
   reporter_id String
   target_type String
   target_id   String
   reason      String
-  status      String  @default("pending")
+  status      String   @default("pending")
   reviewed_by String?
   admin_note  String?
-
-  // Relations
-  reporter User  @relation("ReportedDiscussions", fields: [reporter_id], references: [id], onDelete: Cascade)
-  reviewer User? @relation("ReviewedDiscussionReports", fields: [reviewed_by], references: [id], onDelete: SetNull)
+  created_at  DateTime @default(now()) @db.Timestamptz
 
   @@map("discussion_reports")
 }
 
 model DiscussionInvitation {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
+  id               String    @id @default(uuid())
   group_id         String
   invited_by       String
   invited_user_id  String?
-  type             String  @default("join_request")
-  status           String  @default("pending")
+  type             String    @default("invite")
+  status           String    @default("pending")
+  created_at       DateTime  @default(now()) @db.Timestamptz
+  reviewed_at      DateTime? @db.Timestamptz
   message          String?
   experience_level String?
   goal             String?
-  accepted_rules   Boolean @default(false)
+  accepted_rules   Boolean   @default(false)
 
-  reviewed_at DateTime? @db.Timestamptz
+  group DiscussionGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
 
-  // Relations
-  group        DiscussionGroup @relation(fields: [group_id], references: [id], onDelete: Cascade)
-  inviter      User            @relation("SentDiscussionInvitations", fields: [invited_by], references: [id], onDelete: Cascade)
-  invited_user User?           @relation("ReceivedDiscussionInvitations", fields: [invited_user_id], references: [id], onDelete: SetNull)
-
-  @@index([group_id], map: "idx_discussion_invitations_group")
   @@map("discussion_invitations")
 }
 
 model UserToken {
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  user_id         String @id
-  balance         Int    @default(0)
-  lifetime_earned Int    @default(0)
-
-  // Relations
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id         String   @id 
+  balance         Int      @default(0)
+  lifetime_earned Int      @default(0)
+  updated_at      DateTime @updatedAt @db.Timestamptz
 
   @@map("user_tokens")
 }
 
 model TokenTransaction {
   id         String   @id @default(uuid())
+  user_id    String
+  delta      Int
+  reason     String
+  ref_type   String?
+  ref_id     String?
   created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
 
-  user_id  String
-  delta    Int
-  reason   String
-  ref_type String?
-  ref_id   String?
-
-  // Relations
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@unique([user_id, reason, ref_type, ref_id], map: "token_tx_idempotent_idx")
-  @@index([user_id, created_at(sort: Desc)], map: "token_tx_user_created_idx")
+  @@index([user_id, created_at(sort: Desc)], map: "idx_tt_user")
   @@map("token_transactions")
 }
 
 model TokenRule {
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-
-  event       String  @id
+  event       String    @id
   delta       Int
   description String?
+  updated_at  DateTime  @default(now()) @db.Timestamptz
+  deleted_at  DateTime? @db.Timestamptz
+  deleted_by  String?
 
+  @@index([deleted_at], map: "token_rules_deleted_at_idx")
   @@map("token_rules")
 }
 
@@ -1010,4 +1440,885 @@ model PushPromptEvent {
   @@index([user_id, created_at(sort: Desc)], map: "idx_push_prompt_events_user")
   @@index([event, created_at(sort: Desc)], map: "idx_push_prompt_events_event")
   @@map("push_prompt_events")
+}
+
+// BarUserScoreHistory Model (Tracks scores, accuracy, and leaderboard rankings for Bar Exam)
+model BarUserScoreHistory {
+  id           String   @id @default(uuid())
+  user_id      String
+  quiz_id      String
+  score        Int      @default(0)
+  total        Int      @default(0)
+  completed_at DateTime @default(now()) @db.Timestamptz
+  net_score    Decimal? @db.Decimal(7, 2)
+  accuracy     Decimal? @db.Decimal(5, 2)
+  package_id   String?  
+
+  // Relations
+  package Package? @relation(fields: [package_id], references: [id], onDelete: SetNull)
+  user    User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  quiz    Quiz     @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, quiz_id, package_id], map: "bar_ush_user_quiz_pkg_idx")
+  @@index([quiz_id, package_id], map: "bar_ush_quiz_pkg_idx")
+  @@index([user_id], map: "idx_bar_score_user")
+  @@index([quiz_id], map: "idx_bar_score_quiz")
+  @@index([quiz_id, net_score(sort: Desc), accuracy(sort: Desc), completed_at], map: "idx_bush_quiz_rank")
+  @@map("bar_user_score_history")
+}
+
+model CaseReference {
+  id               String                   @id @default(uuid())
+  case_title       String
+  citation         String?
+  court            String?
+  year             Int?
+  summary          String?
+  full_text        String?
+  pdf_url          String?
+  tags             String[]                 @default([])
+  created_at       DateTime                 @default(now()) @db.Timestamptz
+  search_vector    Unsupported("tsvector")?
+  deleted_at       DateTime?                @db.Timestamptz
+  deleted_by       String?
+  category         String?
+  slug             String?                  @unique
+  content_html     String?
+  content_plain    String?
+  pdf_path         String?
+  is_published     Boolean                  @default(true)
+  published_at     DateTime?                @default(now()) @db.Timestamptz
+  updated_at       DateTime                 @default(now()) @db.Timestamptz
+  cover_image      String?
+  meta_title       String?
+  meta_description String?
+
+  @@index([tags], type: Gin, map: "idx_cr_tags")
+  @@index([deleted_at], map: "idx_case_references_deleted_at")
+  @@index([category], map: "case_references_category_idx")
+  @@index([year], map: "case_references_year_idx")
+  @@index([is_published, published_at(sort: Desc)], map: "case_references_published_idx")
+  @@map("case_references")
+}
+
+model LegalResearch {
+  id            String                   @id @default(uuid())
+  title         String
+  author        String?
+  abstract      String?
+  body_md       String?
+  pdf_url       String?
+  tags          String[]                 @default([])
+  created_at    DateTime                 @default(now()) @db.Timestamptz
+  search_vector Unsupported("tsvector")?
+  deleted_at    DateTime?                @db.Timestamptz
+  deleted_by    String?
+
+  @@index([tags], type: Gin, map: "idx_lr_tags")
+  @@index([deleted_at], map: "idx_legal_research_deleted_at")
+  @@map("legal_research")
+}
+
+model ProgramPage {
+  id           String    @id @default(uuid())
+  program_type String
+  page_type    String
+  title        String
+  body_md      String?
+  file_url     String?
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @default(now()) @db.Timestamptz
+  track        String?   @default("preliminary")
+  deleted_at   DateTime? @db.Timestamptz
+  deleted_by   String?
+
+  @@index([program_type, page_type], map: "idx_program_pages_program")
+  @@index([deleted_at], map: "idx_program_pages_deleted_at")
+  @@map("program_pages")
+}
+
+model Course {
+  id                  String    @id @default(uuid())
+  title               String
+  slug                String?   @unique
+  category            String
+  subject             String?
+  instructor          String?
+  cover_url           String?
+  price               Decimal?  @default(0)
+  is_premium          Boolean?  @default(false)
+  description         String?
+  created_at          DateTime  @default(now()) @db.Timestamptz
+  is_token_unlockable Boolean   @default(false)
+  token_price         Int       @default(0)
+  deleted_at          DateTime? @db.Timestamptz
+  deleted_by          String?
+
+  // relations
+  course_lessons     CourseLesson[]
+  course_enrollments CourseEnrollment[]
+
+  @@index([deleted_at], map: "idx_courses_deleted_at")
+  @@map("courses")
+}
+
+model CourseLesson {
+  id           String    @id @default(uuid())
+  course_id    String
+  order_index  Int       @default(0)
+  title        String
+  video_url    String?
+  pdf_url      String?
+  duration_min Int?
+  is_preview   Boolean?  @default(false)
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  deleted_at   DateTime? @db.Timestamptz
+  deleted_by   String?
+
+  course Course @relation(fields: [course_id], references: [id], onDelete: Cascade)
+
+  // relations
+  course_lesson_progress CourseLessonProgress[]
+
+  @@index([course_id, order_index], map: "idx_cl_course")
+  @@index([deleted_at], map: "course_lessons_deleted_at_idx")
+  @@index([deleted_at], map: "idx_course_lessons_deleted_at")
+  @@map("course_lessons")
+}
+
+model CourseLessonProgress {
+  id           String   @id @default(uuid())
+  user_id      String
+  lesson_id    String
+  completed_at DateTime @default(now()) @db.Timestamptz
+
+  user   User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  lesson CourseLesson @relation(fields: [lesson_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, lesson_id], map: "course_lesson_progress_user_id_lesson_id_key")
+  @@map("course_lesson_progress")
+}
+
+model CourseEnrollment {
+  id               String   @id @default(uuid())
+  user_id          String
+  course_id        String
+  enrolled_via     String
+  enrolled_at      DateTime @default(now()) @db.Timestamptz
+  progress_percent Int?     @default(0)
+
+  user   User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [course_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, course_id], map: "course_enrollments_user_id_course_id_key")
+  @@map("course_enrollments")
+}
+
+model BookSuggestion {
+  id             String    @id @default(uuid())
+  program_type   String
+  track          String?
+  category       String
+  subject_name   String
+  reference_book String
+  box_note       String?
+  order_index    Int       @default(0)
+  is_active      Boolean   @default(true)
+  created_by     String?
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @default(now()) @db.Timestamptz
+  deleted_at     DateTime? @db.Timestamptz
+  deleted_by     String?
+
+  @@index([program_type, track, category, order_index], map: "idx_book_suggestions_lookup")
+  @@index([deleted_at], map: "idx_book_suggestions_deleted_at")
+  @@map("book_suggestions")
+}
+
+model UserScoreHistoryBak20260424 {
+  id           String    @id @default(uuid())
+  user_id      String?
+  quiz_id      String?
+  score        Int?
+  total        Int?
+  completed_at DateTime? @db.Timestamptz
+  net_score    Decimal?  @db.Decimal(7, 2)
+  accuracy     Decimal?  @db.Decimal(5, 2)
+
+  @@map("user_score_history_bak_20260424")
+}
+
+model BarUserScoreHistoryBak20260424 {
+  id           String    @id @default(uuid())
+  user_id      String?
+  quiz_id      String?
+  score        Int?
+  total        Int?
+  completed_at DateTime? @db.Timestamptz
+  net_score    Decimal?  @db.Decimal(7, 2)
+  accuracy     Decimal?  @db.Decimal(5, 2)
+
+  @@map("bar_user_score_history_bak_20260424")
+}
+
+model PaymentSetting {
+  id           Int      @id @default(1)
+  bkash_number String   @default("")
+  instructions String   @default("Send money to the bKash number above and submit your transaction ID below.")
+  updated_at   DateTime @default(now()) @db.Timestamptz
+
+  @@map("payment_settings")
+}
+
+model LlbSubjectPdf {
+  id          String   @id @default(uuid())
+  year_level  Int
+  subject     String
+  title       String
+  description String?
+  file_url    String
+  order_index Int      @default(0)
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz
+  updated_at  DateTime @default(now()) @db.Timestamptz
+
+  @@index([year_level, subject, order_index], map: "idx_llb_pdfs_year_subject")
+  @@map("llb_subject_pdfs")
+}
+
+model UserSubscription {
+  id          String   @id @default(uuid())
+  user_id     String?
+  plan_id     String
+  started_at  DateTime @default(now()) @db.Timestamptz
+  expires_at  DateTime @db.Timestamptz
+  status      String   @default("active")
+  payment_ref String?
+  created_at  DateTime @default(now()) @db.Timestamptz
+
+  user User?            @relation(fields: [user_id], references: [id])
+  plan SubscriptionPlan @relation(fields: [plan_id], references: [id])
+
+  @@index([user_id, status, expires_at], map: "idx_us_user_status")
+  @@map("user_subscriptions")
+}
+
+model SubscriptionPlan {
+  id            String    @id @default(uuid())
+  name          String
+  price         Decimal   @db.Decimal
+  duration_days Int
+  perks         Json?     @default("{}")
+  is_active     Boolean?  @default(true)
+  created_at    DateTime  @default(now()) @db.Timestamptz
+  deleted_at    DateTime? @db.Timestamptz
+  deleted_by    String?
+
+  subscriptions UserSubscription[]
+
+  @@index([deleted_at], map: "subscription_plans_deleted_at_idx")
+  @@index([deleted_at], map: "idx_subscription_plans_deleted_at")
+  @@map("subscription_plans")
+}
+
+model Testimonial {
+  id         String   @id @default(uuid())
+  user_id    String?
+  name       String
+  university String?
+  program    String?
+  photo_url  String?
+  text       String
+  rating     Int?     @default(5) @db.SmallInt
+  verified   Boolean  @default(false)
+  featured   Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @default(now()) @db.Timestamptz
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@map("testimonials")
+}
+
+model FcmToken {
+  id                String    @id @default(uuid())
+  user_id           String
+  token             String    @unique
+  device_id         String?
+  platform          String    @default("web")
+  browser           String?
+  os                String?
+  pwa_installed     Boolean?  @default(false)
+  permission_status String?
+  user_agent        String?
+  is_active         Boolean   @default(true)
+  last_error        String?
+  disabled_at       DateTime? @db.Timestamptz
+  last_seen_at      DateTime  @default(now()) @db.Timestamptz
+  created_at        DateTime  @default(now()) @db.Timestamptz
+  updated_at        DateTime  @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id], map: "fcm_tokens_user_id_idx")
+  @@index([user_id, device_id], map: "fcm_tokens_user_device_idx")
+  @@index([is_active], map: "fcm_tokens_active_idx")
+  @@map("fcm_tokens")
+}
+
+model PushPreference {
+  user_id         String   @id
+  push_enabled    Boolean  @default(false)
+  quiz_reminders  Boolean  @default(true)
+  exam_access     Boolean  @default(true)
+  written_results Boolean  @default(true)
+  new_articles    Boolean  @default(true)
+  announcements   Boolean  @default(true)
+  updated_at      DateTime @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("push_preferences")
+}
+
+model PushLog {
+  id            String   @id @default(uuid())
+  title         String?
+  body          String?
+  category      String?
+  target_type   String?
+  target_count  Int?     @default(0)
+  success_count Int?     @default(0)
+  failed_count  Int?     @default(0)
+  cleaned_count Int?     @default(0)
+  created_by    String?
+  metadata      Json?    @default("{}")
+  created_at    DateTime @default(now()) @db.Timestamptz
+
+  user User? @relation(fields: [created_by], references: [id], onDelete: SetNull)
+
+  @@map("push_logs")
+}
+
+model ChatbotKnowledge {
+  id              String                   @id @default(uuid())
+  source_type     String
+  source_id       String
+  title           String
+  content_text    String
+  url             String?
+  tags            String[]                 @default([])
+  category        String?
+  language        String?                  @default("auto")
+  is_public       Boolean                  @default(true)
+  search_vector   Unsupported("tsvector")?
+  updated_at      DateTime                 @default(now()) @db.Timestamptz
+  access_scope    String                   @default("public")
+  program         String?
+  package_id      String?
+  required_role   String?
+  is_deleted      Boolean                  @default(false)
+  content_hash    String?
+  chunk_index     Int                      @default(0)
+  chunk_total     Int                      @default(1)
+  priority_weight Decimal                  @default(1.0) @db.Decimal
+  indexed_at      DateTime                 @default(now()) @db.Timestamptz
+
+  @@unique([source_type, source_id, chunk_index], map: "chatbot_knowledge_src_chunk_uidx")
+  @@index([access_scope, program, package_id], map: "chatbot_knowledge_scope_idx")
+  @@index([search_vector], map: "chatbot_knowledge_fts_idx", type: Gin)
+  @@index([source_type], map: "chatbot_knowledge_type_idx")
+  @@map("chatbot_knowledge")
+}
+
+model ChatbotRateLimit {
+  id            BigInt   @id @default(autoincrement())
+  user_id       String?
+  ip_hash       String?
+  window_start  DateTime @db.Timestamptz
+  window_kind   String
+  request_count Int      @default(0)
+  ai_count      Int      @default(0)
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, window_kind, window_start], map: "chatbot_rate_limits_user_id_window_kind_window_start_key")
+  @@index([window_start], map: "rl_window_idx")
+  @@map("chatbot_rate_limits")
+}
+
+model ChatbotSynonym {
+  id      String @id @default(uuid())
+  term    String
+  synonym String
+
+  @@unique([term, synonym], map: "chatbot_synonyms_term_synonym_key")
+  @@map("chatbot_synonyms")
+}
+
+model ChatbotSession {
+  id         String   @id @default(uuid())
+  user_id    String
+  started_at DateTime @default(now()) @db.Timestamptz
+  last_at    DateTime @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  // relations
+  chatbot_messages ChatbotMessage[]
+
+  @@map("chatbot_sessions")
+}
+
+model ChatbotMessage {
+  id            String   @id @default(uuid())
+  session_id    String
+  user_id       String
+  question      String
+  answer        String
+  source_type   String
+  used_ai       Boolean  @default(false)
+  related_links Json?    @default("[]") @db.JsonB
+  feedback      Int? // smallint
+  cache_id      String?
+  language      String?
+  latency_ms    Int?
+  created_at    DateTime @default(now()) @db.Timestamptz
+
+  session ChatbotSession      @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  user    User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  cache   ChatbotAnswerCache? @relation(fields: [cache_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, created_at(sort: Desc)], map: "msg_user_idx")
+  @@index([session_id, created_at], map: "msg_session_idx")
+  @@map("chatbot_messages")
+}
+
+model ChatbotAnswerCache {
+  id                  String                   @id @default(uuid())
+  question            String
+  normalized_question String
+  question_hash       String? // GENERATED ALWAYS AS (md5(normalized_question)) STORED
+  answer              String
+  language            String                   @default("auto")
+  source              String
+  confidence_score    Decimal?                 @default(0) @db.Decimal(4, 3)
+  related_links       Json?                    @default("[]") @db.JsonB
+  is_verified         Boolean                  @default(false)
+  review_status       String                   @default("pending_review")
+  usage_count         Int                      @default(0)
+  positive_feedback   Int                      @default(0)
+  negative_feedback   Int                      @default(0)
+  is_disabled         Boolean                  @default(false)
+  search_vector       Unsupported("tsvector")?
+  created_at          DateTime                 @default(now()) @db.Timestamptz
+  updated_at          DateTime                 @default(now()) @db.Timestamptz
+
+  // relations
+  chatbot_messages ChatbotMessage[]
+
+  @@unique([question_hash, language], map: "chatbot_answer_cache_question_hash_language_key")
+  @@index([search_vector], map: "cache_fts_idx", type: Gin)
+  @@index([review_status], map: "cache_status_idx")
+  @@map("chatbot_answer_cache")
+}
+
+model ChatbotIndexSource {
+  key              String   @id
+  display_name     String
+  sql_table        String?
+  id_column        String   @default("id")
+  title_columns    String[] @default([])
+  body_columns     String[] @default([])
+  access_scope     String   @default("public")
+  program          String?
+  package_id       String?
+  required_role    String?
+  priority_weight  Decimal  @default(1.0)
+  custom_adapter   String?
+  enabled          Boolean  @default(false)
+  validated        Boolean  @default(false)
+  validation_error String?
+  notes            String?
+  created_at       DateTime @default(now()) @db.Timestamptz
+  updated_at       DateTime @default(now()) @db.Timestamptz
+
+  @@map("chatbot_index_sources")
+}
+
+model ChatbotReindexJob {
+  id           String    @id @default(uuid())
+  scope        String
+  source_key   String?
+  item_id      String?
+  status       String    @default("pending")
+  total_rows   Int       @default(0)
+  processed    Int       @default(0)
+  failed       Int       @default(0)
+  error        String?
+  triggered_by String?
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  started_at   DateTime? @db.Timestamptz
+  finished_at  DateTime? @db.Timestamptz
+
+  @@index([status, created_at], map: "chatbot_reindex_jobs_status_idx")
+  @@map("chatbot_reindex_jobs")
+}
+
+model ChatbotPdfExtraction {
+  id           String    @id @default(uuid())
+  source_key   String
+  source_id    String
+  file_url     String?
+  status       String    @default("pending")
+  text_length  Int?
+  error        String?
+  extracted_at DateTime? @db.Timestamptz
+  created_at   DateTime  @default(now()) @db.Timestamptz
+
+  @@unique([source_key, source_id], map: "chatbot_pdf_extractions_source_key_source_id_key")
+  @@map("chatbot_pdf_extractions")
+}
+
+enum DownloadContentType {
+  note
+  question_bank
+  bare_act
+  case_reference
+  legal_research
+  program_pdf
+  live_exam
+  study_material
+  book
+  course_file
+  other
+}
+
+model DownloadStat {
+  content_type       DownloadContentType
+  content_id         String
+  total_downloads    BigInt              @default(0)
+  unique_users       BigInt              @default(0)
+  last_downloaded_at DateTime?           @db.Timestamptz
+
+  @@id([content_type, content_id], map: "download_stats_pkey")
+  @@map("download_stats")
+}
+
+model WrittenExam {
+  id                   String    @id @default(uuid())
+  title                String
+  description          String?   @default("")
+  status               String    @default("upcoming")
+  time_limit           Int?
+  total_marks          Int?      @default(100)
+  created_by           String?
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  program_types        String[]  @default(["bjs"])
+  subject              String?
+  exam_date            DateTime? @db.Timestamptz
+  live_start_time      DateTime? @db.Timestamptz
+  live_end_time        DateTime? @db.Timestamptz
+  question_pdf_url     String?
+  answer_sheet_pdf_url String?
+  deleted_at           DateTime? @db.Timestamptz
+  deleted_by           String?
+  batch_title          String?
+  batch_number         Int?
+  syllabus_no          String?
+  exam_mode            String    @default("questions")
+  answer_mode          String    @default("mixed")
+  question_image_url   String?
+  access_type          String    @default("open")
+
+  creator                            User?                           @relation(fields: [created_by], references: [id], onDelete: SetNull)
+  bar_written_submissions            BarWrittenSubmission[]
+  written_exam_resubmission_accesses WrittenExamResubmissionAccess[]
+  written_exam_questions WrittenExamQuestion[]
+  written_exam_allowed_users WrittenExamAllowedUser[]
+  written_submissions WrittenSubmission[]
+  written_exam_resubmission_requests WrittenExamResubmissionRequest[]
+
+  @@index([program_types], map: "idx_written_exams_program_types", type: Gin)
+  @@index([deleted_at], map: "written_exams_deleted_at_idx")
+  @@index([deleted_at], map: "idx_written_exams_deleted_at")
+  @@index([access_type], map: "idx_written_exams_access_type")
+  @@map("written_exams")
+}
+
+model WrittenExamQuestion {
+  id             String    @id @default(uuid())
+  exam_id        String
+  question_text  String
+  question_image String?
+  marks          Decimal?  @default(10)
+  order_index    Int?      @default(0)
+  guidelines     String?
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  deleted_at     DateTime? @db.Timestamptz
+  deleted_by     String?
+
+  exam WrittenExam @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+
+  @@index([deleted_at], map: "written_exam_questions_deleted_at_idx")
+  @@map("written_exam_questions")
+}
+
+model WrittenExamAllowedUser {
+  id         String   @id @default(uuid())
+  exam_id    String
+  user_id    String
+  granted_by String?
+  granted_at DateTime @default(now()) @db.Timestamptz
+
+  exam WrittenExam @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([exam_id, user_id], map: "written_exam_allowed_users_exam_id_user_id_key")
+  @@index([user_id], map: "idx_weau_user")
+  @@index([exam_id], map: "idx_weau_exam")
+  @@index([exam_id, user_id], map: "idx_weau_exam_user")
+  @@map("written_exam_allowed_users")
+}
+
+
+enum ResubmissionProgram {
+  bjs
+  bar
+}
+
+enum ResubmissionStatus {
+  pending
+  approved
+  rejected
+  consumed
+  expired
+  revoked
+}
+
+model WrittenExamResubmissionRequest {
+  id            String              @id @default(uuid())
+  user_id       String
+  exam_id       String
+  program       ResubmissionProgram
+  reason        String
+  evidence_url  String?
+  status        ResubmissionStatus  @default(pending)
+  decided_by    String?
+  decided_at    DateTime?           @db.Timestamptz
+  decision_note String?
+  ttl_minutes   Int?
+  created_at    DateTime            @default(now()) @db.Timestamptz
+  updated_at    DateTime            @default(now()) @db.Timestamptz
+  program_type  ResubmissionProgram
+  user_agent    String?
+  admin_note    String?
+  reviewed_by   String?
+  reviewed_at   DateTime?           @db.Timestamptz
+  evidence_path String?
+
+  user User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  exam WrittenExam @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+
+  // relations
+  resubmission_accesses WrittenExamResubmissionAccess[]
+
+  @@unique([user_id, exam_id], map: "uq_wer_requests_one_pending")
+  @@index([user_id], map: "idx_wer_requests_user")
+  @@index([exam_id], map: "idx_wer_requests_exam")
+  @@index([status], map: "idx_wer_requests_status")
+  @@index([program], map: "idx_wer_requests_program")
+  @@index([user_id, exam_id], map: "idx_wer_requests_user_exam")
+  @@map("written_exam_resubmission_requests")
+}
+
+model WrittenExamResubmissionAccess {
+  id               String              @id @default(uuid())
+  request_id       String
+  user_id          String
+  exam_id          String
+  program          ResubmissionProgram
+  granted_by       String
+  granted_at       DateTime            @default(now()) @db.Timestamptz
+  expires_at       DateTime            @db.Timestamptz
+  consumed_at      DateTime?           @db.Timestamptz
+  revoked_at       DateTime?           @db.Timestamptz
+  revoked_by       String?
+  program_type     ResubmissionProgram
+  upload_count     Int                 @default(0)
+  max_uploads      Int                 @default(1)
+  last_uploaded_at DateTime?           @db.Timestamptz
+
+  request WrittenExamResubmissionRequest @relation(fields: [request_id], references: [id], onDelete: Cascade)
+  user    User                           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  exam    WrittenExam                    @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, exam_id], map: "idx_wer_access_user_exam")
+  @@index([user_id, exam_id, expires_at], map: "idx_wer_access_active")
+  @@map("written_exam_resubmission_access")
+}
+
+model BarWrittenSubmission {
+  id                      String    @id @default(uuid())
+  user_id                 String
+  exam_id                 String?
+  quiz_id                 String?
+  question_id             String?
+  answer_text             String?
+  file_url                String?
+  file_type               String?   @default("text")
+  status                  String    @default("pending")
+  score                   Decimal?  @default(0) @db.Decimal
+  feedback                String?
+  reviewed_by             String?
+  reviewed_at             DateTime? @db.Timestamptz
+  submitted_at            DateTime  @default(now()) @db.Timestamptz
+  created_at              DateTime  @default(now()) @db.Timestamptz
+  feedback_breakdown      Json?     @db.JsonB
+  resubmission_request_id String?
+  submission_cycle        Int       @default(1) // smallint
+  prior_evaluations       Json?     @db.JsonB
+  package_id              String?
+
+  user    User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  exam    WrittenExam? @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  package Package?     @relation(fields: [package_id], references: [id], onDelete: SetNull)
+  quiz    Quiz?        @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, exam_id, package_id], map: "uniq_bar_written_sub_doc")
+  @@index([user_id, exam_id, package_id], map: "bar_ws_user_exam_pkg_idx")
+  @@index([exam_id, package_id], map: "bar_ws_exam_pkg_idx")
+  @@index([user_id, exam_id], map: "idx_bar_ws_user_exam")
+  @@index([exam_id], map: "idx_bar_ws_exam")
+  @@index([status], map: "idx_bar_ws_status")
+  @@index([user_id, package_id], map: "idx_bar_written_subs_user_pkg")
+  @@index([resubmission_request_id], map: "idx_bws_resub_req")
+  @@map("bar_written_submissions")
+}
+
+model DailyTask {
+  id         String    @id @default(uuid())
+  day_index  Int
+  quiz_id    String
+  unlock_at  DateTime? @db.Timestamptz
+  program    String    @default("llb")
+  created_at DateTime  @default(now()) @db.Timestamptz
+  year_level Int       @default(1)
+  deleted_at DateTime? @db.Timestamptz
+  deleted_by String?
+
+  quiz Quiz @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+
+  @@unique([program, day_index], map: "daily_tasks_program_day_index_key")
+  @@unique([program, year_level, day_index], map: "daily_tasks_program_year_day_unique")
+  @@index([program, year_level, day_index], map: "idx_daily_tasks_program_year_day")
+  @@index([deleted_at], map: "daily_tasks_deleted_at_idx")
+  @@index([deleted_at], map: "idx_daily_tasks_deleted_at")
+  @@map("daily_tasks")
+}
+
+model ExamArchivePdf {
+  id           String   @id @default(uuid())
+  quiz_id      String   @unique
+  pdf_url      String
+  generated_at DateTime @default(now()) @db.Timestamptz
+
+  quiz Quiz @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+
+  @@map("exam_archive_pdfs")
+}
+
+model Note {
+  id                 String   @id @default(uuid())
+  title              String
+  description        String?
+  content            String?
+  category           String?
+  file_url           String?
+  section            String   @default("general")
+  tier               String   @default("free")
+  price_bdt          Int      @default(0)
+  file_path          String?
+  file_mime          String?
+  created_at         DateTime @default(now()) @db.Timestamptz
+  is_published       Boolean  @default(true)
+  allow_download     Boolean  @default(true)
+  free_preview_pages Int      @default(0)
+  package_ids        String[] @default([])
+
+  // relations
+  note_purchases NotePurchase[]
+
+  @@index([package_ids], map: "notes_package_ids_gin", type: Gin)
+  @@map("notes")
+}
+
+model NoteTag {
+  id            String       @id @default(uuid())
+  slug          String       @unique(map: "note_tags_slug_key")
+  label_bn      String
+  program       PkgProgram?
+  track         PkgTrack?
+  created_at    DateTime?    @default(now()) @db.Timestamptz
+  note_tag_maps NoteTagMap[]
+
+  @@map("note_tags")
+}
+
+model NoteTagMap {
+  note_id String
+  tag_id  String
+
+  tag NoteTag @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+
+  @@id([note_id, tag_id])
+  @@map("note_tag_map")
+}
+
+model NotePurchase {
+  id             String    @id @default(uuid())
+  user_id        String
+  note_id        String
+  amount_bdt     Int       @default(0)
+  transaction_id String
+  sender_phone   String
+  status         String    @default("pending")
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  payment_ref    String?
+  admin_note     String?
+  reviewed_by    String?
+  reviewed_at    DateTime? @db.Timestamptz
+  updated_at     DateTime  @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  note Note @relation(fields: [note_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id], map: "idx_np_user")
+  @@index([note_id], map: "idx_np_note")
+  @@index([status], map: "idx_np_status")
+  @@map("note_purchases")
+}
+
+
+model DownloadEvent {
+  id               String               @id @default(uuid())
+  user_id          String?
+  content_type     DownloadContentType
+  content_id       String
+  content_title    String?
+  program          String?
+  file_path        String?
+  file_size_bytes  BigInt?
+  source           String?
+  client           String?
+  session_key      String?
+  downloaded_at    DateTime             @default(now()) @db.Timestamptz
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([content_type, content_id, downloaded_at(sort: Desc)], map: "download_events_content_idx")
+  @@index([user_id, downloaded_at(sort: Desc)], map: "download_events_user_idx")
+  @@index([downloaded_at(sort: Desc)], map: "download_events_time_idx")
+  @@unique([user_id, content_type, content_id, session_key], map: "download_events_dedupe")
+  @@map("download_events")
 }

@@ -174,16 +174,16 @@ async function seedUniversities() {
     { name: 'Port City International University', type: 'other' },
   ];
 
-  for (const uni of universities) {
-    await prisma.university.upsert({
-      where: { name: uni.name },
-      update: { type: uni.type },
-      create: {
-        name: uni.name,
-        type: uni.type,
-      },
-    });
-  }
+  // for (const uni of universities) {
+  //   await prisma.university.upsert({
+  //     where: { name: uni.name },
+  //     update: { type: uni.type },
+  //     create: {
+  //       name: uni.name,
+  //       type: uni.type,
+  //     },
+  //   });
+  // }
 }
 
 // -------------------------------------------------------------
