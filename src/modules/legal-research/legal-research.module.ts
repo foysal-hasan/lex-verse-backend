@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { LegalResearchService } from './legal-research.service';
-import { LegalResearchController } from './legal-research.controller';
+import { UserLegalResearchController } from './ontrollers/user-legal-research.controller';
+import { AdminLegalResearchController } from './ontrollers/admin-legal-research.controller';
+
 
 @Module({
-  controllers: [LegalResearchController],
+  controllers: [UserLegalResearchController, AdminLegalResearchController],
   providers: [LegalResearchService],
 })
 export class LegalResearchModule {}
