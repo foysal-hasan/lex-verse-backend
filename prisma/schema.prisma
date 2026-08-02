@@ -852,8 +852,6 @@ model Announcement {
   @@map("announcements")
 }
 
-
-
 model UserTokensArchive202605 {
   user_id         String   @id @default(uuid())
   balance         Int      @default(0)

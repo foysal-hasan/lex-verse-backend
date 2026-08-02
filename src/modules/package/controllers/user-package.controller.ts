@@ -1,9 +1,11 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseInterceptors } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PackageService } from '../package.service';
 import { FilterPackageDto } from '../dto/filter-package.dto';
+import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 
 @ApiTags('Packages (User)')
+@UseInterceptors(TransformResponseInterceptor)
 @Controller('packages')
 export class UserPackageController {
   constructor(private readonly packageService: PackageService) {}

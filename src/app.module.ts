@@ -8,6 +8,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { RedisModule } from '@nestjs-modules/ioredis';
 import { BullModule } from '@nestjs/bullmq';
 import { PackageModule } from './modules/package/package.module';
+import { QuizModule } from './modules/quiz/quiz.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { PackageModule } from './modules/package/package.module';
     PrismaModule,
     AuthModule,
     PackageModule,
+    QuizModule,
   ],
   controllers: [AppController],
   providers: [AppService],

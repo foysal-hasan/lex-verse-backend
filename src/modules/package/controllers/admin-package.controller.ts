@@ -7,16 +7,25 @@ import {
   Param, 
   Delete, 
   Query,
-  UseGuards 
+  UseGuards, 
+  UseInterceptors
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { PackageService } from '../package.service';
 import { CreatePackageDto } from '../dto/create-package.dto';
 import { UpdatePackageDto } from '../dto/update-package.dto';
 import { FilterPackageDto } from '../dto/filter-package.dto';
+import { RolesGuard } from 'src/common/guard/role/roles.guard';
+import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
+import { UserRole } from 'src/generated/prisma/enums';
+import { Roles } from 'src/common/guard/role/roles.decorator';
+import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 
 @ApiTags('Packages (Admin)')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.admin)
+@UseInterceptors(TransformResponseInterceptor)
 @Controller('admin/packages')
 export class AdminPackageController {
   constructor(private readonly packageService: PackageService) {}
