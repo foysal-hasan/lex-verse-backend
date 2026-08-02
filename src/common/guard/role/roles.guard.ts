@@ -8,7 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from './roles.decorator';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { UserType as Role } from 'src/generated/prisma/enums';
+import { UserRole as Role } from 'src/generated/prisma/enums';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -34,7 +34,7 @@ export class RolesGuard implements CanActivate {
       return false;
     }
 
-    if (requiredRoles.some((role) => userDetails.type?.includes(role))) {
+    if (requiredRoles.some((role) => userDetails.role?.includes(role))) {
       return true;
     } else {
       throw new HttpException(
