@@ -1462,28 +1462,38 @@ model BarUserScoreHistory {
 model CaseReference {
   id               String                   @id @default(uuid())
   case_title       String
+  slug             String?                  @unique
   citation         String?
   court            String?
   year             Int?
   summary          String?
+
+  content_html     String?
+  content_plain    String?
+  pdf_path         String?
+
+  // Meta fields for SEO
+  meta_title       String?
+  meta_description String?
+
+  is_published     Boolean                  @default(true)
+  category         String?
+  tags             String[]                 @default([])
+
   full_text        String?
   pdf_url          String?
-  tags             String[]                 @default([])
+  
   created_at       DateTime                 @default(now()) @db.Timestamptz
   search_vector    Unsupported("tsvector")?
   deleted_at       DateTime?                @db.Timestamptz
   deleted_by       String?
-  category         String?
-  slug             String?                  @unique
-  content_html     String?
-  content_plain    String?
-  pdf_path         String?
-  is_published     Boolean                  @default(true)
+
+  
+ 
   published_at     DateTime?                @default(now()) @db.Timestamptz
   updated_at       DateTime                 @default(now()) @db.Timestamptz
   cover_image      String?
-  meta_title       String?
-  meta_description String?
+  
 
   @@index([tags], type: Gin, map: "idx_cr_tags")
   @@index([deleted_at], map: "idx_case_references_deleted_at")

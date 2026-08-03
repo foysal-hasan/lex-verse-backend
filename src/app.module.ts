@@ -15,6 +15,7 @@ import { FileUploadModule } from './modules/file-upload/file-upload.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BareActModule } from './modules/bare-act/bare-act.module';
 import { GlobalQueueModule } from './common/queue/global-queue.module';
+import { CaseReferenceModule } from './modules/case-reference/case-reference.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { GlobalQueueModule } from './common/queue/global-queue.module';
     LegalResearchModule,
     FileUploadModule,
     BareActModule,
+    CaseReferenceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
