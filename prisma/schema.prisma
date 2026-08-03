@@ -2320,3 +2320,23 @@ model DownloadEvent {
   @@unique([user_id, content_type, content_id, session_key], map: "download_events_dedupe")
   @@map("download_events")
 }
+
+
+
+enum FileStatus {
+  PENDING
+  ATTACHED
+}
+
+model FileUpload {
+  id         String     @id @default(uuid())
+  url        String     @unique
+  folder     String
+  file_path  String
+  status     FileStatus @default(PENDING)
+  created_at DateTime   @default(now()) @db.Timestamptz
+  updated_at DateTime   @updatedAt @db.Timestamptz
+
+  @@index([status, created_at], map: "idx_file_upload_status_created")
+  @@map("file_uploads")
+}

@@ -11,6 +11,8 @@ import { PackageModule } from './modules/package/package.module';
 import { QuizModule } from './modules/quiz/quiz.module';
 import { LegalDictionaryModule } from './modules/legal-dictionary/legal-dictionary.module';
 import { LegalResearchModule } from './modules/legal-research/legal-research.module';
+import { FileUploadModule } from './modules/file-upload/file-upload.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -34,11 +36,13 @@ import { LegalResearchModule } from './modules/legal-research/legal-research.mod
       },
     }),
     PrismaModule,
+    ScheduleModule.forRoot(),
     AuthModule,
     PackageModule,
     QuizModule,
     LegalDictionaryModule,
     LegalResearchModule,
+    FileUploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],
