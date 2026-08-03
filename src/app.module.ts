@@ -13,6 +13,8 @@ import { LegalDictionaryModule } from './modules/legal-dictionary/legal-dictiona
 import { LegalResearchModule } from './modules/legal-research/legal-research.module';
 import { FileUploadModule } from './modules/file-upload/file-upload.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { BareActModule } from './modules/bare-act/bare-act.module';
+import { GlobalQueueModule } from './common/queue/global-queue.module';
 
 @Module({
   imports: [
@@ -35,6 +37,7 @@ import { ScheduleModule } from '@nestjs/schedule';
         port: +appConfig().redis.port,
       },
     }),
+    GlobalQueueModule,
     PrismaModule,
     ScheduleModule.forRoot(),
     AuthModule,
@@ -43,6 +46,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     LegalDictionaryModule,
     LegalResearchModule,
     FileUploadModule,
+    BareActModule,
   ],
   controllers: [AppController],
   providers: [AppService],
