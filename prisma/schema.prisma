@@ -18,8 +18,6 @@ datasource db {
   provider = "postgresql"
 }
 
-
-
 // =============== User Start ===============
 enum UserRole {
   user
@@ -100,10 +98,10 @@ model User {
   chatbot_messages                   ChatbotMessage[]
   written_exam_resubmission_accesses WrittenExamResubmissionAccess[]
   quiz_allowed_users                 QuizAllowedUser[]
-  written_exam_allowed_users WrittenExamAllowedUser[]
-  download_events DownloadEvent[]
-  written_submissions WrittenSubmission[] @relation("UserWrittenSubmissions")
-  reviewed_submissions WrittenSubmission[] @relation("UserReviewedSubmissions")
+  written_exam_allowed_users         WrittenExamAllowedUser[]
+  download_events                    DownloadEvent[]
+  written_submissions                WrittenSubmission[]              @relation("UserWrittenSubmissions")
+  reviewed_submissions               WrittenSubmission[]              @relation("UserReviewedSubmissions")
   written_exam_resubmission_requests WrittenExamResubmissionRequest[]
 
   @@map("users")
@@ -201,7 +199,7 @@ model Package {
   includes_all_notes             Boolean      @default(false)
   includes_all_qbanks            Boolean      @default(false)
   includes_all_premium           Boolean      @default(false)
-  price_bdt                      Decimal?        @default(0)
+  price_bdt                      Decimal?     @default(0)
 
   announcements           Announcement[]
   responses               Response[]
@@ -212,7 +210,8 @@ model Package {
   access_requests         PackageAccessRequest[]
   user_accesses           UserPackageAccess[]
   bar_written_submissions BarWrittenSubmission[]
-  written_submissions WrittenSubmission[]
+  written_submissions     WrittenSubmission[]
+  question_banks          QuestionBank[]
 
   @@map("packages")
 }
@@ -457,8 +456,7 @@ model WrittenSubmission {
   package  Package?     @relation(fields: [package_id], references: [id], onDelete: SetNull)
   user     User         @relation("UserWrittenSubmissions", fields: [user_id], references: [id], onDelete: Cascade)
   reviewer User?        @relation("UserReviewedSubmissions", fields: [reviewed_by], references: [id])
-  question Question?      @relation(fields: [question_id], references: [id], onDelete: SetNull)
-  
+  question Question?    @relation(fields: [question_id], references: [id], onDelete: SetNull)
 
   @@index([user_id], map: "idx_written_submissions_user")
   @@index([quiz_id], map: "idx_written_submissions_quiz")
@@ -535,7 +533,6 @@ model MentorRating {
   @@map("mentor_ratings")
 }
 
-
 model University {
   id         String   @id @default(uuid())
   name       String
@@ -593,15 +590,14 @@ model Quiz {
   exam_archive_pdf        ExamArchivePdf?
 
   // relations
-  quiz_retake_requests QuizRetakeRequest[]
-  quiz_allowed_users   QuizAllowedUser[]
-  bar_responses BarResponse[]
-  written_submissions WrittenSubmission[]
-  questions Question[]
-  responses Response[]
-  user_score_history UserScoreHistory[]
+  quiz_retake_requests   QuizRetakeRequest[]
+  quiz_allowed_users     QuizAllowedUser[]
+  bar_responses          BarResponse[]
+  written_submissions    WrittenSubmission[]
+  questions              Question[]
+  responses              Response[]
+  user_score_history     UserScoreHistory[]
   bar_user_score_history BarUserScoreHistory[]
-  
 
   @@index([exam_type, exam_track], map: "idx_quizzes_exam_type_track")
   @@index([program_type, exam_type], map: "idx_quizzes_program_exam")
@@ -682,15 +678,14 @@ model Response {
   selected_answer  String?
   is_correct       Boolean?
   created_at       DateTime @default(now()) @db.Timestamptz
-  question_bank_id String?  
-  package_id       String?  
+  question_bank_id String?
+  package_id       String?
 
   // Relations
   package       Package?      @relation(fields: [package_id], references: [id], onDelete: SetNull)
   user          User?         @relation(fields: [user_id], references: [id], onDelete: SetNull)
   quiz          Quiz?         @relation(fields: [quiz_id], references: [id], onDelete: SetNull)
   question      Question?     @relation(fields: [question_id], references: [id], onDelete: SetNull)
-  question_bank QuestionBank? @relation(fields: [question_bank_id], references: [id], onDelete: SetNull)
 
   @@index([question_bank_id], map: "responses_qb_idx")
   @@index([user_id, quiz_id, package_id], map: "responses_user_quiz_pkg_idx")
@@ -708,15 +703,15 @@ model BarResponse {
   selected_answer  String
   is_correct       Boolean  @default(false)
   created_at       DateTime @default(now()) @db.Timestamptz
-  question_bank_id String?  
-  package_id       String?  
+  question_bank_id String?
+  package_id       String?
 
   // Relations
   package       Package?      @relation(fields: [package_id], references: [id], onDelete: SetNull)
   user          User?         @relation(fields: [user_id], references: [id], onDelete: SetNull)
   quiz          Quiz          @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
   question      Question      @relation(fields: [question_id], references: [id], onDelete: Cascade)
-  question_bank QuestionBank? @relation(fields: [question_bank_id], references: [id], onDelete: SetNull)
+  
 
   @@index([question_bank_id], map: "bar_responses_qb_idx")
   @@index([user_id, quiz_id, package_id], map: "bar_responses_user_quiz_pkg_idx")
@@ -728,52 +723,52 @@ model BarResponse {
   @@map("bar_responses")
 }
 
+enum Tier {
+  free
+  premium
+}
+
 model QuestionBank {
-  id                  String    @id @default(uuid())
-  program_type        String
-  exam_type           String
-  title               String
-  pdf_url             String?
-  is_premium          Boolean?  @default(false)
-  year                Int?
-  subject             String?
-  created_at          DateTime  @default(now()) @db.Timestamptz
-  deleted_at          DateTime? @db.Timestamptz
-  deleted_by          String?
-  content_type        String    @default("question_answer")
-  access_type         String    @default("free")
-  pdf_path            String?
-  original_filename   String?
-  file_size_bytes     BigInt?
-  description         String?
-  tags                String[]  @default([])
-  is_published        Boolean   @default(true)
-  updated_at          DateTime  @default(now()) @db.Timestamptz
-  is_featured         Boolean   @default(false)
-  sort_order          Int       @default(0)
-  download_count      Int       @default(0)
-  last_downloaded_at  DateTime? @db.Timestamptz
-  is_token_unlockable Boolean   @default(false)
-  token_price         Int       @default(0)
-  tier                String    @default("free")
-  price_bdt           Int       @default(0)
-  allow_download      Boolean   @default(true)
+  id                 String    @id @default(uuid())
+  title              String
+  description        String?
+  tags               String[]  @default([])
+  pdf_path           String?
+  content_type       String    @default("question_answer")
+  is_published       Boolean   @default(true)
+  is_featured        Boolean   @default(false)
+  program_type       String
+  exam_type          String
+  tier               Tier      @default(free)
+  year               Int?
+  subject            String?
+  allow_download     Boolean   @default(true)
+  last_downloaded_at DateTime? @db.Timestamptz
+  price              Decimal   @db.Decimal(10, 2)
+  discount_price     Decimal?  @db.Decimal(10, 2)
+  download_count     Int       @default(0)
+
+  pdf_url    String?
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  deleted_at DateTime? @db.Timestamptz
+  deleted_by String?
+
+  package_id String?
 
   // Relations
-  responses               Response[]
-  bar_responses           BarResponse[]
   question_bank_purchases QuestionBankPurchase[]
+  package Package? @relation(fields: [package_id], references: [id], onDelete: SetNull)
 
   @@index([deleted_at], map: "idx_question_banks_deleted_at")
   @@index([tier], map: "idx_question_banks_tier")
   @@index([program_type], map: "qb_program_idx")
   @@index([exam_type], map: "qb_exam_idx")
   @@index([content_type], map: "qb_content_idx")
-  @@index([access_type], map: "qb_access_idx")
   @@index([year], map: "qb_year_idx")
   @@index([is_published], map: "qb_published_idx")
   @@index([is_featured], map: "qb_featured_idx")
-  @@index([sort_order], map: "qb_sort_idx")
   @@map("question_banks")
 }
 
@@ -782,7 +777,7 @@ model QuestionBankPurchase {
   user_id           String
   question_bank_id  String
   status            String    @default("pending")
-  price_bdt         Int       @default(0)
+  price_bdt         Decimal   @db.Decimal(10, 2)
   payment_method    String?
   payment_reference String?
   admin_note        String?
@@ -790,8 +785,6 @@ model QuestionBankPurchase {
   reviewed_at       DateTime? @db.Timestamptz
   created_at        DateTime  @default(now()) @db.Timestamptz
   updated_at        DateTime  @default(now()) @db.Timestamptz
-  amount_bdt        Int       @default(0)
-  payment_ref       String?
 
   question_bank QuestionBank @relation(fields: [question_bank_id], references: [id], onDelete: Cascade)
 
@@ -813,8 +806,8 @@ model QuizRetakeRequest {
   reviewed_at     DateTime? @db.Timestamptz
   exam_session_id String?
 
-  user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  quiz         Quiz         @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  quiz Quiz @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
 
   @@index([user_id, quiz_id], map: "idx_retake_requests_user_quiz")
   @@index([status], map: "idx_retake_requests_status")
@@ -937,7 +930,7 @@ model UserScoreHistory {
   completed_at DateTime? @default(now()) @db.Timestamptz
   net_score    Decimal?  @db.Decimal(7, 2)
   accuracy     Decimal?  @db.Decimal(5, 2)
-  package_id   String?   
+  package_id   String?
 
   // Relations
   user    User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -1010,22 +1003,22 @@ model Flashcard {
 
 // BareAct Model (Legal Bare Acts and Documents)
 model BareAct {
-  id                String                   @id @default(uuid())
-  created_at        DateTime?                @default(now()) @db.Timestamptz
-  updated_at        DateTime?                @updatedAt @db.Timestamptz
-  deleted_at        DateTime?                @db.Timestamptz
+  id         String    @id @default(uuid())
+  created_at DateTime? @default(now()) @db.Timestamptz
+  updated_at DateTime? @updatedAt @db.Timestamptz
+  deleted_at DateTime? @db.Timestamptz
 
-  title             String
-  category          String?
-  content_html      String?
-  content_plain     String?
-  source_type       String                   @default("text")
-  pdf_path          String?
-  is_active         Boolean?                 @default(true)
-  deleted_by        String?                  
-  search_vector     Unsupported("tsvector")?
-  allow_download    Boolean                  @default(true)
-  download_count    Int                    @default(0)
+  title          String
+  category       String?
+  content_html   String?
+  content_plain  String?
+  source_type    String                   @default("text")
+  pdf_path       String?
+  is_active      Boolean?                 @default(true)
+  deleted_by     String?
+  search_vector  Unsupported("tsvector")?
+  allow_download Boolean                  @default(true)
+  download_count Int                      @default(0)
 
   @@index([search_vector], map: "bare_acts_search_idx")
   @@map("bare_acts")
@@ -1064,7 +1057,7 @@ model LegalDictionary {
   definition_bn String?
   category      String?
   deleted_at    DateTime? @db.Timestamptz
-  deleted_by    String?   
+  deleted_by    String?
 
   @@index([term_en], map: "idx_legal_dictionary_term")
   @@index([category], map: "idx_legal_dictionary_category")
@@ -1340,8 +1333,8 @@ model DiscussionReply {
 model DiscussionReaction {
   id          String   @id @default(uuid())
   target_type String
-  target_id   String   
-  user_id     String   
+  target_id   String
+  user_id     String
   reaction    String   @default("like")
   created_at  DateTime @default(now()) @db.Timestamptz
 
@@ -1384,7 +1377,7 @@ model DiscussionInvitation {
 }
 
 model UserToken {
-  user_id         String   @id 
+  user_id         String   @id
   balance         Int      @default(0)
   lifetime_earned Int      @default(0)
   updated_at      DateTime @updatedAt @db.Timestamptz
@@ -1445,7 +1438,7 @@ model BarUserScoreHistory {
   completed_at DateTime @default(now()) @db.Timestamptz
   net_score    Decimal? @db.Decimal(7, 2)
   accuracy     Decimal? @db.Decimal(5, 2)
-  package_id   String?  
+  package_id   String?
 
   // Relations
   package Package? @relation(fields: [package_id], references: [id], onDelete: SetNull)
@@ -1461,42 +1454,39 @@ model BarUserScoreHistory {
 }
 
 model CaseReference {
-  id               String                   @id @default(uuid())
-  case_title       String
-  slug             String?                  @unique
-  citation         String?
-  court            String?
-  year             Int?
-  summary          String?
+  id         String  @id @default(uuid())
+  case_title String
+  slug       String? @unique
+  citation   String?
+  court      String?
+  year       Int?
+  summary    String?
 
-  content_html     String?
-  content_plain    String?
-  pdf_path         String?
+  content_html  String?
+  content_plain String?
+  pdf_path      String?
 
   // Meta fields for SEO
   meta_title       String?
   meta_description String?
 
-  is_published     Boolean                  @default(true)
-  category         String?
-  tags             String[]                 @default([])
+  is_published Boolean  @default(true)
+  category     String?
+  tags         String[] @default([])
 
-  full_text        String?
-  pdf_url          String?
-  
-  created_at       DateTime                 @default(now()) @db.Timestamptz
-  search_vector    Unsupported("tsvector")?
-  deleted_at       DateTime?                @db.Timestamptz
-  deleted_by       String?
+  full_text String?
+  pdf_url   String?
 
-  
- 
-  published_at     DateTime?                @default(now()) @db.Timestamptz
-  updated_at       DateTime                 @default(now()) @db.Timestamptz
-  cover_image      String?
+  created_at    DateTime                 @default(now()) @db.Timestamptz
+  search_vector Unsupported("tsvector")?
+  deleted_at    DateTime?                @db.Timestamptz
+  deleted_by    String?
 
-  download_count   Int                    @default(0)
-  
+  published_at DateTime? @default(now()) @db.Timestamptz
+  updated_at   DateTime  @default(now()) @db.Timestamptz
+  cover_image  String?
+
+  download_count Int @default(0)
 
   @@index([tags], type: Gin, map: "idx_cr_tags")
   @@index([deleted_at], map: "idx_case_references_deleted_at")
@@ -2036,12 +2026,12 @@ model WrittenExam {
   question_image_url   String?
   access_type          String    @default("open")
 
-  creator                            User?                           @relation(fields: [created_by], references: [id], onDelete: SetNull)
+  creator                            User?                            @relation(fields: [created_by], references: [id], onDelete: SetNull)
   bar_written_submissions            BarWrittenSubmission[]
   written_exam_resubmission_accesses WrittenExamResubmissionAccess[]
-  written_exam_questions WrittenExamQuestion[]
-  written_exam_allowed_users WrittenExamAllowedUser[]
-  written_submissions WrittenSubmission[]
+  written_exam_questions             WrittenExamQuestion[]
+  written_exam_allowed_users         WrittenExamAllowedUser[]
+  written_submissions                WrittenSubmission[]
   written_exam_resubmission_requests WrittenExamResubmissionRequest[]
 
   @@index([program_types], map: "idx_written_exams_program_types", type: Gin)
@@ -2085,7 +2075,6 @@ model WrittenExamAllowedUser {
   @@index([exam_id, user_id], map: "idx_weau_exam_user")
   @@map("written_exam_allowed_users")
 }
-
 
 enum ResubmissionProgram {
   bjs
@@ -2304,31 +2293,28 @@ model NotePurchase {
   @@map("note_purchases")
 }
 
-
 model DownloadEvent {
-  id               String               @id @default(uuid())
-  user_id          String?
-  content_type     DownloadContentType
-  content_id       String
-  content_title    String?
-  program          String?
-  file_path        String?
-  file_size_bytes  BigInt?
-  source           String?
-  client           String?
-  session_key      String?
-  downloaded_at    DateTime             @default(now()) @db.Timestamptz
+  id              String              @id @default(uuid())
+  user_id         String?
+  content_type    DownloadContentType
+  content_id      String
+  content_title   String?
+  program         String?
+  file_path       String?
+  file_size_bytes BigInt?
+  source          String?
+  client          String?
+  session_key     String?
+  downloaded_at   DateTime            @default(now()) @db.Timestamptz
 
   user User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
 
+  @@unique([user_id, content_type, content_id, session_key], map: "download_events_dedupe")
   @@index([content_type, content_id, downloaded_at(sort: Desc)], map: "download_events_content_idx")
   @@index([user_id, downloaded_at(sort: Desc)], map: "download_events_user_idx")
   @@index([downloaded_at(sort: Desc)], map: "download_events_time_idx")
-  @@unique([user_id, content_type, content_id, session_key], map: "download_events_dedupe")
   @@map("download_events")
 }
-
-
 
 enum FileStatus {
   PENDING
