@@ -257,6 +257,16 @@ export class CaseReferenceService {
       throw new NotFoundException('Physical PDF document file not found on server');
     }
 
+    // Update download count
+    await this.prisma.caseReference.update({
+      where: { id: caseRef.id },
+      data: {
+        download_count: {
+          increment: 1,
+        },
+      },
+    });
+
     return {
       stream: fs.createReadStream(absolutePath),
       filename: `${(caseRef.slug || 'case-reference')}.pdf`,

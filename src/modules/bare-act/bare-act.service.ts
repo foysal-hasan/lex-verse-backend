@@ -222,6 +222,16 @@ export class BareActService {
       contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     }
 
+    // Update download count
+    await this.prisma.bareAct.update({
+      where: { id: bareAct.id },
+      data: {
+        download_count: {
+          increment: 1,
+        },
+      },
+    });
+
     return {
       stream: fs.createReadStream(absolutePath),
       filename: `${bareAct.title.replace(/[^a-zA-Z0-9]/g, '_')}${path.extname(bareAct.pdf_path)}`,
