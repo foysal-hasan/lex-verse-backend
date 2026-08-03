@@ -7,6 +7,7 @@ export enum AllowedUploadFolders {
   USER_PROFILES = 'user-profiles',
   QUIZZES = 'quizzes',
   PACKAGES = 'packages',
+  BARE_ACTS = 'bare-acts',
 }
 
 @Injectable()

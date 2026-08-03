@@ -28,15 +28,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-
     if (user && user.sessionId) {
-      console.log(user);
-
       const isBlacklisted = await this.redis.get(redisKeys.getBlacklistKey(user.sessionId));
-      console.log(isBlacklisted);
-
       if (isBlacklisted) {
-        console.log('Session is blacklisted.');
         throw new UnauthorizedException('This session has been revoked.');
       }
     }

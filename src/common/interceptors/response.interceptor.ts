@@ -1,4 +1,10 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+  StreamableFile,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -11,11 +17,16 @@ export interface Response<T> {
 }
 
 @Injectable()
-export class TransformResponseInterceptor<T> implements NestInterceptor<T, Response<T>> {
+export class TransformResponseInterceptor<T>
+  implements NestInterceptor<T, Response<T> | StreamableFile>
+{
   // Inject Reflector to read metadata from methods
   constructor(private readonly reflector: Reflector) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<Response<T>> {
+  intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Observable<Response<T> | StreamableFile> {
     const httpContext = context.switchToHttp();
     const request = httpContext.getRequest();
     const handler = context.getHandler();
@@ -27,17 +38,26 @@ export class TransformResponseInterceptor<T> implements NestInterceptor<T, Respo
     if (!message) {
       const method = request.method;
       if (method === 'POST') message = 'Resource created successfully';
-      else if (method === 'PATCH' || method === 'PUT') message = 'Resource updated successfully';
+      else if (method === 'PATCH' || method === 'PUT')
+        message = 'Resource updated successfully';
       else if (method === 'DELETE') message = 'Resource deleted successfully';
       else message = 'Operation completed successfully';
     }
 
     return next.handle().pipe(
-      map((data) => ({
-        success: true,
-        message,
-        data: data ?? null,
-      })),
+      map((data) => {
+        // 3. Pass StreamableFile directly through without wrapping
+        if (data instanceof StreamableFile) {
+          return data;
+        }
+
+        // 4. Wrap normal JSON responses
+        return {
+          success: true,
+          message,
+          data: data ?? null,
+        };
+      }),
     );
   }
 }

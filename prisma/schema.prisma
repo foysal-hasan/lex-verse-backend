@@ -1011,52 +1011,46 @@ model Flashcard {
 // BareAct Model (Legal Bare Acts and Documents)
 model BareAct {
   id                String                   @id @default(uuid())
+  created_at        DateTime?                @default(now()) @db.Timestamptz
+  updated_at        DateTime?                @updatedAt @db.Timestamptz
+  deleted_at        DateTime?                @db.Timestamptz
+
   title             String
   category          String?
-  is_active         Boolean?                 @default(true)
-  created_at        DateTime?                @default(now()) @db.Timestamptz
-  updated_at        DateTime?                @default(now()) @db.Timestamptz
-  pdf_url           String?
-  download_url      String?
-  deleted_at        DateTime?                @db.Timestamptz
-  deleted_by        String?                  
-  source_type       String                   @default("text")
   content_html      String?
   content_plain     String?
+  source_type       String                   @default("text")
   pdf_path          String?
-  generated_pdf_url String?
+  is_active         Boolean?                 @default(true)
+  deleted_by        String?                  
   search_vector     Unsupported("tsvector")?
   allow_download    Boolean                  @default(true)
 
-  // Relations
-  sections BareActSection[]
-
-  @@index([deleted_at], map: "idx_bare_acts_deleted_at")
   @@index([search_vector], map: "bare_acts_search_idx")
   @@map("bare_acts")
 }
 
-// BareActSection Model (Sections within a Bare Act)
-model BareActSection {
-  id               String    @id @default(dbgenerated("gen_random_uuid()")) 
-  act_id           String    
-  section_number   String
-  title            String?
-  content_text     String?
-  explanation_text String?
-  explanation_bn   String?
-  order_index      Int?      @default(0)
-  created_at       DateTime? @default(now()) @db.Timestamptz
-  deleted_at       DateTime? @db.Timestamptz
-  deleted_by       String?   
+// // BareActSection Model (Sections within a Bare Act)
+// model BareActSection {
+//   id               String    @id @default(uuid())
+//   act_id           String    
+//   section_number   String
+//   title            String?
+//   content_text     String?
+//   explanation_text String?
+//   explanation_bn   String?
+//   order_index      Int?      @default(0)
+//   created_at       DateTime? @default(now()) @db.Timestamptz
+//   deleted_at       DateTime? @db.Timestamptz
+//   deleted_by       String?   
 
-  // Relations
-  act BareAct @relation(fields: [act_id], references: [id], onDelete: Cascade)
+//   // Relations
+//   act BareAct @relation(fields: [act_id], references: [id], onDelete: Cascade)
 
-  @@index([act_id, order_index], map: "idx_bare_act_sections_act")
-  @@index([deleted_at], map: "idx_bare_act_sections_deleted_at")
-  @@map("bare_act_sections")
-}
+//   @@index([act_id, order_index], map: "idx_bare_act_sections_act")
+//   @@index([deleted_at], map: "idx_bare_act_sections_deleted_at")
+//   @@map("bare_act_sections")
+// }
 
 // Legal Dictionary Model
 model LegalDictionary {
