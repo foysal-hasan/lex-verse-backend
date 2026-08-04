@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Req,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { QuestionBankService } from '../question-bank.service';
@@ -19,12 +20,14 @@ import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guard/role/roles.guard';
 import { Roles } from 'src/common/guard/role/roles.decorator';
 import { UserRole } from 'src/generated/prisma/enums';
+import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 
 
 @ApiTags('Admin - Question Banks')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.admin)
+@UseInterceptors(TransformResponseInterceptor)
 @Controller('admin/question-banks')
 export class QuestionBankAdminController {
   constructor(private readonly questionBankService: QuestionBankService) {}

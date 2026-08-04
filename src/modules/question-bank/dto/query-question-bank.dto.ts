@@ -1,18 +1,20 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
-import { Tier } from '@prisma/client';
 
-export enum QuestionBankSortBy {
-  CREATED_AT = 'created_at',
-  YEAR = 'year',
-  TITLE = 'title',
-  DOWNLOAD_COUNT = 'download_count',
+export enum AccessFilter {
+  ALL = 'all',
+  FREE = 'free',
+  LOCKED = 'locked',
+  APPROVED = 'approved',
 }
 
-export enum SortOrder {
-  ASC = 'asc',
-  DESC = 'desc',
+export enum SortOption {
+  FEATURED = 'featured',
+  LATEST = 'latest',
+  OLDEST = 'oldest',
+  YEAR_DESC = 'year_desc',
+  YEAR_ASC = 'year_asc',
 }
 
 export class QueryQuestionBankDto {
@@ -35,10 +37,15 @@ export class QueryQuestionBankDto {
   @IsOptional()
   search?: string;
 
-  @ApiPropertyOptional({ enum: Tier })
-  @IsEnum(Tier)
+  @ApiPropertyOptional({ enum: AccessFilter, default: AccessFilter.ALL })
+  @IsEnum(AccessFilter)
   @IsOptional()
-  tier?: Tier;
+  access?: AccessFilter = AccessFilter.ALL;
+
+  @ApiPropertyOptional({ enum: SortOption, default: SortOption.FEATURED })
+  @IsEnum(SortOption)
+  @IsOptional()
+  sort?: SortOption = SortOption.FEATURED;
 
   @ApiPropertyOptional({ description: 'Filter by program type' })
   @IsString()
@@ -82,14 +89,4 @@ export class QueryQuestionBankDto {
   @IsBoolean()
   @IsOptional()
   is_published?: boolean;
-
-  @ApiPropertyOptional({ enum: QuestionBankSortBy, default: QuestionBankSortBy.CREATED_AT })
-  @IsEnum(QuestionBankSortBy)
-  @IsOptional()
-  sort_by?: QuestionBankSortBy = QuestionBankSortBy.CREATED_AT;
-
-  @ApiPropertyOptional({ enum: SortOrder, default: SortOrder.DESC })
-  @IsEnum(SortOrder)
-  @IsOptional()
-  sort_order?: SortOrder = SortOrder.DESC;
 }

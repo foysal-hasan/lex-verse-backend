@@ -9,10 +9,12 @@ import { QueueDispatcherService } from 'src/common/queue/queue-dispatcher.servic
 import { FILE_UPLOAD_JOBS } from '../file-upload/constants/file-upload.constants';
 import { CreateQuestionBankDto } from './dto/create-question-bank.dto';
 import { UpdateQuestionBankDto } from './dto/update-question-bank.dto';
-import { QueryQuestionBankDto } from './dto/query-question-bank.dto';
-import { Tier } from 'src/generated/prisma/enums';
-import { Prisma } from "src/generated/prisma/client"
-
+import {
+  QueryQuestionBankDto,
+  AccessFilter,
+  SortOption,
+} from './dto/query-question-bank.dto';
+import { Tier } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -40,7 +42,7 @@ export class QuestionBankService {
   }
 
   // -------------------------------------------------------------
-  // HELPER: Check Download / Access Rights for a User
+  // HELPER: Check Access Rights
   // -------------------------------------------------------------
   async checkAccessPermission(questionBankId: string, userId?: string) {
     const qb = await this.prisma.questionBank.findFirst({
@@ -51,7 +53,6 @@ export class QuestionBankService {
       throw new NotFoundException('Question Bank not found');
     }
 
-    // 1. Free tier is accessible to everyone
     if (qb.tier === Tier.free) {
       return { qb, hasAccess: true, reason: 'FREE_TIER' };
     }
@@ -60,7 +61,7 @@ export class QuestionBankService {
       return { qb, hasAccess: false, reason: 'UNAUTHENTICATED' };
     }
 
-    // 2. Direct Approved Purchase Check
+    // Direct Purchase Check
     const directPurchase = await this.prisma.questionBankPurchase.findFirst({
       where: {
         user_id: userId,
@@ -69,11 +70,24 @@ export class QuestionBankService {
       },
     });
 
+    // Package Access Request Check
+    const packageAccessRequest = await this.prisma.packageAccessRequest.findFirst({
+      where: {
+        user_id: userId,
+        package_id: qb.package_id,
+        status: 'approved',
+      },
+    });
+
+    if (packageAccessRequest) {
+      return { qb, hasAccess: true, reason: 'PACKAGE_ACCESS_REQUEST' };
+    }
+
     if (directPurchase) {
       return { qb, hasAccess: true, reason: 'DIRECT_PURCHASE' };
     }
 
-    // 3. Parent Package Purchase Check (if linked to a package)
+    // Package Purchase Check
     if (qb.package_id) {
       const packagePurchase = await this.prisma.$queryRaw<Array<{ id: string }>>`
         SELECT id FROM package_purchases 
@@ -92,26 +106,24 @@ export class QuestionBankService {
   }
 
   // -------------------------------------------------------------
-  // ADMIN: Create Question Bank
+  // ADMIN: Create
   // -------------------------------------------------------------
   async create(dto: CreateQuestionBankDto) {
-    const item = await this.prisma.questionBank.create({
-      data: dto,
-    });
-
+    const item = await this.prisma.questionBank.create({ data: dto });
     await this.enqueueAttachedFiles(dto);
     return item;
   }
 
   // -------------------------------------------------------------
-  // LISTING: List Question Banks with Access Status Mapping
+  // LISTING: List Question Banks
   // -------------------------------------------------------------
   async findAll(query: QueryQuestionBankDto, userId?: string, isAdmin = false) {
     const {
       page = 1,
       limit = 10,
       search,
-      tier,
+      access = AccessFilter.ALL,
+      sort = SortOption.FEATURED,
       program_type,
       exam_type,
       content_type,
@@ -120,27 +132,31 @@ export class QuestionBankService {
       package_id,
       is_featured,
       is_published,
-      sort_by,
-      sort_order,
     } = query;
 
     const skip = (page - 1) * limit;
-    const where: Prisma.QuestionBankWhereInput = { deleted_at: null };
 
+    // Dynamic Filter Object
+    const where: Record<string, any> = { deleted_at: null };
+
+    // Published Status Handling
     if (!isAdmin) {
       where.is_published = true;
     } else if (is_published !== undefined) {
       where.is_published = is_published;
     }
 
-    if (tier) where.tier = tier;
+    // Featured Status Handling
+    if (is_featured !== undefined) {
+      where.is_featured = is_featured;
+    }
+
     if (program_type) where.program_type = { equals: program_type, mode: 'insensitive' };
     if (exam_type) where.exam_type = { equals: exam_type, mode: 'insensitive' };
     if (content_type) where.content_type = { equals: content_type, mode: 'insensitive' };
     if (subject) where.subject = { equals: subject, mode: 'insensitive' };
     if (year) where.year = year;
     if (package_id) where.package_id = package_id;
-    if (is_featured !== undefined) where.is_featured = is_featured;
 
     if (search) {
       where.OR = [
@@ -150,40 +166,98 @@ export class QuestionBankService {
       ];
     }
 
+    // Handle "Free" tier filter directly
+    if (access === AccessFilter.FREE) {
+      where.tier = Tier.free;
+    }
+
+    // Fetch User Approved Purchases (Direct + Package)
+    let approvedQbIds: string[] = [];
+    if (userId) {
+      const [directPurchases, packagePurchases] = await Promise.all([
+        this.prisma.questionBankPurchase.findMany({
+          where: { user_id: userId, status: 'approved' },
+          select: { question_bank_id: true },
+        }),
+        this.prisma.packageAccessRequest.findMany({
+          where: { user_id: userId, status: 'approved' },
+          select: { package_id: true },
+        }),
+      ]);
+
+      const directQbIds = directPurchases.map((p) => p.question_bank_id);
+      const userPackageIds = packagePurchases.map((p) => p.package_id);
+
+      if (userPackageIds.length > 0) {
+        const packageQbs = await this.prisma.questionBank.findMany({
+          where: { package_id: { in: userPackageIds }, deleted_at: null },
+          select: { id: true },
+        });
+        approvedQbIds = Array.from(
+          new Set([...directQbIds, ...packageQbs.map((q) => q.id)]),
+        );
+      } else {
+        approvedQbIds = directQbIds;
+      }
+    }
+
+    // Handle Access Filter (`approved` vs `locked`)
+    if (access === AccessFilter.APPROVED) {
+      if (!userId || approvedQbIds.length === 0) {
+        return { data: [], meta: { total: 0, page, limit, total_pages: 0 } };
+      }
+      where.id = { in: approvedQbIds };
+    } else if (access === AccessFilter.LOCKED) {
+      where.tier = Tier.premium;
+      if (approvedQbIds.length > 0) {
+        where.id = { notIn: approvedQbIds };
+      }
+    }
+
+    // Sorting Logic
+    let orderBy: Record<string, any>[] = [];
+    switch (sort) {
+      case SortOption.FEATURED:
+        orderBy = [{ is_featured: 'desc' }, { created_at: 'desc' }];
+        break;
+      case SortOption.LATEST:
+        orderBy = [{ created_at: 'desc' }];
+        break;
+      case SortOption.OLDEST:
+        orderBy = [{ created_at: 'asc' }];
+        break;
+      case SortOption.YEAR_DESC:
+        orderBy = [{ year: 'desc' }, { created_at: 'desc' }];
+        break;
+      case SortOption.YEAR_ASC:
+        orderBy = [{ year: 'asc' }, { created_at: 'desc' }];
+        break;
+      default:
+        orderBy = [{ created_at: 'desc' }];
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.questionBank.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { [sort_by]: sort_order },
+        orderBy,
         include: {
-          package: {
-            select: { id: true, title_bn: true, price_bdt: true },
-          },
-          ...(userId
-            ? {
-                question_bank_purchases: {
-                  where: { user_id: userId },
-                  select: { status: true },
-                },
-              }
-            : {}),
+          package: { select: { id: true, title_bn: true, price_bdt: true } },
         },
       }),
       this.prisma.questionBank.count({ where }),
     ]);
 
-    // Map output with dynamic `is_unlocked` state for the logged-in user
+    // Format output: Mask pdf_path and pdf_url if user does not have access
     const formattedData = data.map((item) => {
-      const directPurchaseApproved =
-        item.question_bank_purchases?.some((p) => p.status === 'approved') ?? false;
+      const isApproved = approvedQbIds.includes(item.id);
+      const isUnlocked = item.tier === Tier.free || isApproved || isAdmin;
 
-      const isUnlocked =
-        item.tier === Tier.free || directPurchaseApproved || isAdmin;
-
-      const { question_bank_purchases, ...rest } = item;
       return {
-        ...rest,
+        ...item,
+        pdf_path: isUnlocked ? item.pdf_path : null,
+        pdf_url: isUnlocked ? item.pdf_url : null,
         is_unlocked: isUnlocked,
       };
     });
@@ -200,14 +274,12 @@ export class QuestionBankService {
   }
 
   // -------------------------------------------------------------
-  // GET SINGLE BY ID
+  // GET ONE
   // -------------------------------------------------------------
   async findOne(id: string, userId?: string, isAdmin = false) {
     const qb = await this.prisma.questionBank.findFirst({
       where: { id, deleted_at: null },
-      include: {
-        package: { select: { id: true, title_bn: true, price_bdt: true } },
-      },
+      include: { package: { select: { id: true, title_bn: true, price_bdt: true } } },
     });
 
     if (!qb) {
@@ -219,10 +291,13 @@ export class QuestionBankService {
     }
 
     const { hasAccess, reason } = await this.checkAccessPermission(id, userId);
+    const isUnlocked = hasAccess || isAdmin;
 
     return {
       ...qb,
-      is_unlocked: hasAccess || isAdmin,
+      pdf_path: isUnlocked ? qb.pdf_path : null,
+      pdf_url: isUnlocked ? qb.pdf_url : null,
+      is_unlocked: isUnlocked,
       access_reason: reason,
     };
   }
@@ -259,7 +334,7 @@ export class QuestionBankService {
   }
 
   // -------------------------------------------------------------
-  // USER: Download File Stream (With Access Control & Counter)
+  // DOWNLOAD STREAM
   // -------------------------------------------------------------
   async getDownloadStream(id: string, userId: string) {
     const { qb, hasAccess } = await this.checkAccessPermission(id, userId);
@@ -284,7 +359,6 @@ export class QuestionBankService {
       throw new NotFoundException('Physical document file missing on server');
     }
 
-    // Atomic update for download analytics
     await this.prisma.questionBank.update({
       where: { id },
       data: {
@@ -306,7 +380,7 @@ export class QuestionBankService {
   }
 
   // -------------------------------------------------------------
-  // DISTINCT FILTER OPTIONS
+  // DISTINCT OPTIONS
   // -------------------------------------------------------------
   async getUniqueProgramTypes(): Promise<string[]> {
     const res = await this.prisma.questionBank.findMany({

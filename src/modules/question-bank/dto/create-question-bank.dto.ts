@@ -30,10 +30,10 @@ export class CreateQuestionBankDto {
   @IsOptional()
   tags?: string[] = [];
 
-  @ApiPropertyOptional({ example: 'uploads/question-banks/2023-prelim.pdf' })
+  @ApiProperty({ example: 'uploads/question-banks/2023-prelim.pdf' })
   @IsString()
-  @IsOptional()
-  pdf_path?: string;
+  @IsNotEmpty()
+  pdf_path: string;
 
   @ApiPropertyOptional({ example: 'https://cdn.domain.com/uploads/question-banks/2023-prelim.pdf' })
   @IsString()

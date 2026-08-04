@@ -6,46 +6,50 @@ import {
   UseGuards,
   StreamableFile,
   Req,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { QuestionBankService } from '../question-bank.service';
 import { QueryQuestionBankDto } from '../dto/query-question-bank.dto';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from 'src/modules/auth/guards/optional-jwt-auth.guard';
+import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
+import { Request } from 'express';
 
 @ApiTags('User - Question Banks')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@UseInterceptors(TransformResponseInterceptor)
 @Controller('question-banks')
 export class QuestionBankUserController {
   constructor(private readonly questionBankService: QuestionBankService) {}
 
   @Get()
-  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'List published Question Banks with search, filters, & unlock status' })
-  async findAll(@Query() query: QueryQuestionBankDto, @Req() req: any) {
-    const userId = req.user?.id;
+  async findAll(@Query() query: QueryQuestionBankDto, @Req() req: Request) {
+    const userId = req.user?.userId;
     return this.questionBankService.findAll(query, userId, false);
   }
 
-  @Get('programs/unique')
+  @Get('programs')
   @ApiOperation({ summary: 'Get list of unique program types' })
   async getProgramTypes() {
     return this.questionBankService.getUniqueProgramTypes();
   }
 
-  @Get('exams/unique')
+  @Get('exams')
   @ApiOperation({ summary: 'Get list of unique exam types' })
   async getExamTypes() {
     return this.questionBankService.getUniqueExamTypes();
   }
 
-  @Get('subjects/unique')
+  @Get('subjects')
   @ApiOperation({ summary: 'Get list of unique subjects' })
   async getSubjects() {
     return this.questionBankService.getUniqueSubjects();
   }
 
   @Get(':id')
-  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Get details of a Question Bank' })
   async findOne(@Param('id') id: string, @Req() req: any) {
     const userId = req.user?.id;
@@ -53,8 +57,6 @@ export class QuestionBankUserController {
   }
 
   @Get(':id/download')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Download Question Bank PDF file' })
   async downloadPdf(@Param('id') id: string, @Req() req: any): Promise<StreamableFile> {
     const userId = req.user.id;
