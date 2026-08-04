@@ -17,6 +17,7 @@ import { BareActModule } from './modules/bare-act/bare-act.module';
 import { GlobalQueueModule } from './common/queue/global-queue.module';
 import { CaseReferenceModule } from './modules/case-reference/case-reference.module';
 import { QuestionBankModule } from './modules/question-bank/question-bank.module';
+import { QuestionBankPurchaseModule } from './modules/question-bank-purchase/question-bank-purchase.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { QuestionBankModule } from './modules/question-bank/question-bank.module
     BareActModule,
     CaseReferenceModule,
     QuestionBankModule,
+    QuestionBankPurchaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -58,8 +58,8 @@ export class QuestionBankUserController {
 
   @Get(':id/download')
   @ApiOperation({ summary: 'Download Question Bank PDF file' })
-  async downloadPdf(@Param('id') id: string, @Req() req: any): Promise<StreamableFile> {
-    const userId = req.user.id;
+  async downloadPdf(@Param('id') id: string, @Req() req: Request): Promise<StreamableFile> {
+    const userId = req.user.userId;
     const { stream, filename, type } = await this.questionBankService.getDownloadStream(
       id,
       userId,

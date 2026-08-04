@@ -17,13 +17,14 @@ import {
 import { Tier } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
+import appConfig from 'src/config/app.config';
 
 @Injectable()
 export class QuestionBankService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly queueDispatcher: QueueDispatcherService,
-  ) {}
+  ) { }
 
   // -------------------------------------------------------------
   // HELPER: Track Files for Background Queue Processing
@@ -46,7 +47,10 @@ export class QuestionBankService {
   // -------------------------------------------------------------
   async checkAccessPermission(questionBankId: string, userId?: string) {
     const qb = await this.prisma.questionBank.findFirst({
-      where: { id: questionBankId, deleted_at: null },
+      where: {
+        id: questionBankId,
+        deleted_at: null,
+      },
     });
 
     if (!qb) {
@@ -56,7 +60,7 @@ export class QuestionBankService {
     if (qb.tier === Tier.free) {
       return { qb, hasAccess: true, reason: 'FREE_TIER' };
     }
-
+    
     if (!userId) {
       return { qb, hasAccess: false, reason: 'UNAUTHENTICATED' };
     }
@@ -70,34 +74,26 @@ export class QuestionBankService {
       },
     });
 
-    // Package Access Request Check
-    const packageAccessRequest = await this.prisma.packageAccessRequest.findFirst({
-      where: {
-        user_id: userId,
-        package_id: qb.package_id,
-        status: 'approved',
-      },
-    });
-
-    if (packageAccessRequest) {
-      return { qb, hasAccess: true, reason: 'PACKAGE_ACCESS_REQUEST' };
-    }
-
     if (directPurchase) {
       return { qb, hasAccess: true, reason: 'DIRECT_PURCHASE' };
     }
 
     // Package Purchase Check
     if (qb.package_id) {
-      const packagePurchase = await this.prisma.$queryRaw<Array<{ id: string }>>`
-        SELECT id FROM package_purchases 
-        WHERE user_id = ${userId} 
-          AND package_id = ${qb.package_id} 
-          AND status = 'approved' 
-        LIMIT 1
-      `;
+      // Package Access Request Check
+      const packageAccessRequest = await this.prisma.packageAccessRequest.findFirst({
+        where: {
+          user_id: userId,
+          package_id: qb.package_id,
+          status: 'approved',
+        },
+      });
 
-      if (packagePurchase && packagePurchase.length > 0) {
+      if (packageAccessRequest) {
+        return { qb, hasAccess: true, reason: 'PACKAGE_ACCESS_REQUEST' };
+      }
+
+      if (packageAccessRequest) {
         return { qb, hasAccess: true, reason: 'PACKAGE_PURCHASE' };
       }
     }
@@ -354,7 +350,8 @@ export class QuestionBankService {
       throw new BadRequestException('No PDF document file configured for this entry');
     }
 
-    const absolutePath = path.join(process.cwd(), filePath);
+    const absolutePath = path.join(appConfig().storageUrl.rootUrl, filePath);
+    console.log(absolutePath);
     if (!fs.existsSync(absolutePath)) {
       throw new NotFoundException('Physical document file missing on server');
     }

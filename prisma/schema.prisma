@@ -777,7 +777,8 @@ model QuestionBankPurchase {
   user_id           String
   question_bank_id  String
   status            String    @default("pending")
-  price_bdt         Decimal   @db.Decimal(10, 2)
+  price         Decimal   @db.Decimal(10, 2)
+  currency        String    @default("BDT")
   payment_method    String?
   payment_reference String?
   admin_note        String?
@@ -788,7 +789,6 @@ model QuestionBankPurchase {
 
   question_bank QuestionBank @relation(fields: [question_bank_id], references: [id], onDelete: Cascade)
 
-  @@unique([user_id, question_bank_id])
   @@index([user_id], map: "idx_qbp_user")
   @@index([question_bank_id], map: "idx_qbp_qb")
   @@index([status], map: "idx_qbp_status")
