@@ -47,6 +47,16 @@ export class QuestionBankPurchaseUserController {
     return this.purchaseService.findAll(query, userId);
   }
 
+  // get the list of purchase question bank ids for a user
+  @Get('question-bank-ids')
+  @ApiOperation({ summary: 'List user my purchase question bank ids' })
+  async findMyPurchasedQuestionBankIds(
+    @Req() req: Request,
+  ) {
+    const userId = req.user.userId;
+    return this.purchaseService.findMyPurchasedQuestionBankIds(userId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get details of a specific purchase request' })
   async findOne(@Param('id') id: string, @Req() req: Request) {

@@ -168,4 +168,21 @@ export class QuestionBankPurchaseService {
       },
     });
   }
+
+
+  // -------------------------------------------------------------
+  // GET PURCHASED QUESTION BANK IDS (User) 
+  // return array of question bank ids
+  // -------------------------------------------------------------
+  async findMyPurchasedQuestionBankIds(userId: string) {
+    return this.prisma.questionBankPurchase.findMany({
+      where: {
+        user_id: userId,
+        status: PurchaseStatus.APPROVED,
+      },
+      select: {
+        question_bank_id: true,
+      },
+    }).then((items) => items.map((item) => item.question_bank_id));
+  }
 }
