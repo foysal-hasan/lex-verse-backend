@@ -966,11 +966,12 @@ model FlashcardDeck {
   title          String
   description    String?
   category       String?
+
   created_by     String?
   is_active      Boolean?  @default(true)
+
   deleted_at     DateTime? @db.Timestamptz
   deleted_by     String?
-  allow_download Boolean   @default(false)
 
   // Relations
   creator    User?       @relation("CreatedFlashcardDecks", fields: [created_by], references: [id], onDelete: SetNull)
@@ -993,6 +994,8 @@ model Flashcard {
   back_image  String?
   order_index Int?    @default(0)
   deleted_by  String?
+
+  is_active Boolean? @default(true)
 
   // Relations
   deck FlashcardDeck @relation(fields: [deck_id], references: [id], onDelete: Cascade)

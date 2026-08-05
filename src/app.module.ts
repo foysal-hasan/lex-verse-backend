@@ -18,6 +18,7 @@ import { GlobalQueueModule } from './common/queue/global-queue.module';
 import { CaseReferenceModule } from './modules/case-reference/case-reference.module';
 import { QuestionBankModule } from './modules/question-bank/question-bank.module';
 import { QuestionBankPurchaseModule } from './modules/question-bank-purchase/question-bank-purchase.module';
+import { FlashcardModule } from './modules/flashcard/flashcard.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { QuestionBankPurchaseModule } from './modules/question-bank-purchase/que
     CaseReferenceModule,
     QuestionBankModule,
     QuestionBankPurchaseModule,
+    FlashcardModule,
   ],
   controllers: [AppController],
   providers: [AppService],
