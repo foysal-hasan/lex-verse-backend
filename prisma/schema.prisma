@@ -212,6 +212,7 @@ model Package {
   bar_written_submissions BarWrittenSubmission[]
   written_submissions     WrittenSubmission[]
   question_banks          QuestionBank[]
+  book_references         BookReference[]
 
   @@map("packages")
 }
@@ -682,10 +683,10 @@ model Response {
   package_id       String?
 
   // Relations
-  package       Package?      @relation(fields: [package_id], references: [id], onDelete: SetNull)
-  user          User?         @relation(fields: [user_id], references: [id], onDelete: SetNull)
-  quiz          Quiz?         @relation(fields: [quiz_id], references: [id], onDelete: SetNull)
-  question      Question?     @relation(fields: [question_id], references: [id], onDelete: SetNull)
+  package  Package?  @relation(fields: [package_id], references: [id], onDelete: SetNull)
+  user     User?     @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  quiz     Quiz?     @relation(fields: [quiz_id], references: [id], onDelete: SetNull)
+  question Question? @relation(fields: [question_id], references: [id], onDelete: SetNull)
 
   @@index([question_bank_id], map: "responses_qb_idx")
   @@index([user_id, quiz_id, package_id], map: "responses_user_quiz_pkg_idx")
@@ -707,11 +708,10 @@ model BarResponse {
   package_id       String?
 
   // Relations
-  package       Package?      @relation(fields: [package_id], references: [id], onDelete: SetNull)
-  user          User?         @relation(fields: [user_id], references: [id], onDelete: SetNull)
-  quiz          Quiz          @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
-  question      Question      @relation(fields: [question_id], references: [id], onDelete: Cascade)
-  
+  package  Package? @relation(fields: [package_id], references: [id], onDelete: SetNull)
+  user     User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  quiz     Quiz     @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [question_id], references: [id], onDelete: Cascade)
 
   @@index([question_bank_id], map: "bar_responses_qb_idx")
   @@index([user_id, quiz_id, package_id], map: "bar_responses_user_quiz_pkg_idx")
@@ -759,7 +759,7 @@ model QuestionBank {
 
   // Relations
   question_bank_purchases QuestionBankPurchase[]
-  package Package? @relation(fields: [package_id], references: [id], onDelete: SetNull)
+  package                 Package?               @relation(fields: [package_id], references: [id], onDelete: SetNull)
 
   @@index([deleted_at], map: "idx_question_banks_deleted_at")
   @@index([tier], map: "idx_question_banks_tier")
@@ -777,8 +777,8 @@ model QuestionBankPurchase {
   user_id           String
   question_bank_id  String
   status            String    @default("pending")
-  price         Decimal   @db.Decimal(10, 2)
-  currency        String    @default("BDT")
+  price             Decimal   @db.Decimal(10, 2)
+  currency          String    @default("BDT")
   payment_method    String?
   payment_reference String?
   admin_note        String?
@@ -963,15 +963,15 @@ model FlashcardDeck {
   created_at DateTime? @default(now()) @db.Timestamptz
   updated_at DateTime? @updatedAt @db.Timestamptz
 
-  title          String
-  description    String?
-  category       String?
+  title       String
+  description String?
+  category    String?
 
-  created_by     String?
-  is_active      Boolean?  @default(true)
+  created_by String?
+  is_active  Boolean? @default(true)
 
-  deleted_at     DateTime? @db.Timestamptz
-  deleted_by     String?
+  deleted_at DateTime? @db.Timestamptz
+  deleted_by String?
 
   // Relations
   creator    User?       @relation("CreatedFlashcardDecks", fields: [created_by], references: [id], onDelete: SetNull)
@@ -1610,6 +1610,33 @@ model CourseEnrollment {
 
   @@unique([user_id, course_id], map: "course_enrollments_user_id_course_id_key")
   @@map("course_enrollments")
+}
+
+model BookReference {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  program_type PkgProgram[]
+  track        PkgTrack[]
+  category     String[]
+
+  title   String?
+  content String
+
+  is_published Boolean @default(true)
+
+  created_by String?
+  deleted_at DateTime? @db.Timestamptz
+
+  // relations
+  packages     Package[]
+
+  @@index([program_type, track, category], map: "book_refs_lookup_idx")
+  @@index([program_type], type: Gin, map: "book_references_program_type_gin")
+  @@index([track], type: Gin, map: "book_references_tracks_gin")
+  @@index([category], type: Gin, map: "book_references_categories_gin")
+  @@map("book_references")
 }
 
 model BookSuggestion {

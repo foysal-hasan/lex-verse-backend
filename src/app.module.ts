@@ -19,6 +19,7 @@ import { CaseReferenceModule } from './modules/case-reference/case-reference.mod
 import { QuestionBankModule } from './modules/question-bank/question-bank.module';
 import { QuestionBankPurchaseModule } from './modules/question-bank-purchase/question-bank-purchase.module';
 import { FlashcardModule } from './modules/flashcard/flashcard.module';
+import { BookReferenceModule } from './modules/book-reference/book-reference.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { FlashcardModule } from './modules/flashcard/flashcard.module';
     QuestionBankModule,
     QuestionBankPurchaseModule,
     FlashcardModule,
+    BookReferenceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
