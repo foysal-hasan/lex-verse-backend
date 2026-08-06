@@ -20,6 +20,7 @@ import { QuestionBankModule } from './modules/question-bank/question-bank.module
 import { QuestionBankPurchaseModule } from './modules/question-bank-purchase/question-bank-purchase.module';
 import { FlashcardModule } from './modules/flashcard/flashcard.module';
 import { BookReferenceModule } from './modules/book-reference/book-reference.module';
+import { PackagePurchaseModule } from './modules/package-purchase/package-purchase.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { BookReferenceModule } from './modules/book-reference/book-reference.mod
     QuestionBankPurchaseModule,
     FlashcardModule,
     BookReferenceModule,
+    PackagePurchaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],

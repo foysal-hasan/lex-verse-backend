@@ -246,10 +246,13 @@ model PackageAccessRequest {
   id                  String       @id @default(uuid())
   user_id             String
   package_id          String
-  full_name           String
+  name                String
   phone               String
-  bkash_number        String
+  transaction_id      String
   message             String?
+
+  payment_method      String
+
   status              PkgReqStatus @default(pending)
   decided_by          String?
   decided_at          DateTime?    @db.Timestamptz
