@@ -13,7 +13,7 @@ import { PkgReqStatus } from 'src/generated/prisma/enums';
 
 @Injectable()
 export class BookReferenceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // -------------------------------------------------------------
   // ADMIN: Create Book Reference
@@ -138,19 +138,23 @@ export class BookReferenceService {
   }
 
   // -------------------------------------------------------------
-  // HELPER: Verify if user purchased package
+  // HELPER: Verify if user has active package access
   // -------------------------------------------------------------
   private async verifyUserPackagePurchase(userId: string, packageId: string): Promise<void> {
-    const userPackage = await this.prisma.packageAccessRequest.findFirst({
+    const userAccess = await this.prisma.userPackageAccess.findFirst({
       where: {
         user_id: userId,
         package_id: packageId,
-        status: PkgReqStatus.approved,
+        status: 'active', // Matches PkgAccStatus enum value
+        OR: [
+          { expires_at: null }, // Lifetime or non-expiring access
+          { expires_at: { gt: new Date() } }, // Access has not expired yet
+        ],
       },
     });
 
-    if (!userPackage) {
-      throw new ForbiddenException('You have not purchased this package or your access has expired.');
+    if (!userAccess) {
+      throw new ForbiddenException('You do not have an active subscription or access to this package.');
     }
   }
 
