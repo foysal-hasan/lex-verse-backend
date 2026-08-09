@@ -148,6 +148,21 @@ model AccountDeletionAttempt {
 // ================ User end ======================
 
 // =============== Package start ==================
+// PackageContentRule Model (Rules for mapping content resources to packages)
+model PackageContentRule {
+  id            String  @id @default(uuid())
+  package_id    String
+  resource_type String
+  match_mode    String
+  match_value   Json    @default("{}") @db.JsonB
+  label         String?
+
+  // Relations
+  package Package @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  @@index([package_id, resource_type], map: "idx_pcr_pkg_type")
+  @@map("package_content_rules")
+}
 
 enum PkgDuration {
   monthly
@@ -174,6 +189,7 @@ enum PkgTrack {
   preliminary
   written
 }
+
 
 // Package Model
 model Package {
@@ -216,22 +232,6 @@ model Package {
   book_references         BookReference[]
 
   @@map("packages")
-}
-
-// PackageContentRule Model (Rules for mapping content resources to packages)
-model PackageContentRule {
-  id            String  @id @default(uuid())
-  package_id    String
-  resource_type String
-  match_mode    String
-  match_value   Json    @default("{}") @db.JsonB
-  label         String?
-
-  // Relations
-  package Package @relation(fields: [package_id], references: [id], onDelete: Cascade)
-
-  @@index([package_id, resource_type], map: "idx_pcr_pkg_type")
-  @@map("package_content_rules")
 }
 
 // Custom Enum for Package Access Request Status

@@ -31,7 +31,7 @@ export class PackagePurchaseUserController {
     @Body() dto: CreateAccessRequestDto,
     @Req() req: Request,
   ) {
-    const userId = (req.user as any).userId;
+    const userId = req.user.userId;
     return this.purchaseService.createAccessRequest(userId, dto);
   }
 
@@ -41,7 +41,7 @@ export class PackagePurchaseUserController {
     @Query() query: QueryPackageAccessRequestDto,
     @Req() req: Request,
   ) {
-    const userId = (req.user as any).userId;
+    const userId = req.user.userId;
     return this.purchaseService.findMyRequests(userId, query);
   }
 
@@ -51,7 +51,7 @@ export class PackagePurchaseUserController {
     @Query() query: QueryUserPackageAccessDto,
     @Req() req: Request,
   ) {
-    const userId = (req.user as any).userId;
+    const userId = req.user.userId;
     return this.purchaseService.findMyPackageAccesses(userId, query);
   }
 }

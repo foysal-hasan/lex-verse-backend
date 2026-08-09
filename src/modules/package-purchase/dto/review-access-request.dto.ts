@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsOptional, IsString, IsDateString } from 'class-validator';
-import { PkgAccStatus, PkgReqStatus } from '@prisma/client';
+import { PkgReqStatus } from 'src/generated/prisma/enums';
 
 export class ReviewAccessRequestDto {
   @ApiProperty({ enum: PkgReqStatus, example: PkgReqStatus.approved })
