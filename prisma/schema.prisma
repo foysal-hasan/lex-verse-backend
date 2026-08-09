@@ -1629,6 +1629,7 @@ model BookReference {
   content String
 
   is_published Boolean @default(true)
+  requires_purchase Boolean  @default(false)
 
   created_by String?
   deleted_at DateTime? @db.Timestamptz

@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { PkgProgram, PkgTrack } from '@prisma/client';
 
 export class QueryBookReferenceDto {
@@ -18,16 +18,6 @@ export class QueryBookReferenceDto {
   @IsOptional()
   limit?: number = 10;
 
-  @ApiPropertyOptional({ description: 'Fetch book references linked to a specific Package ID' })
-  @IsUUID()
-  @IsOptional()
-  package_id?: string;
-
-  @ApiPropertyOptional({ description: 'Search title or content' })
-  @IsString()
-  @IsOptional()
-  search?: string;
-
   @ApiPropertyOptional({ enum: PkgProgram })
   @IsEnum(PkgProgram)
   @IsOptional()
@@ -38,14 +28,18 @@ export class QueryBookReferenceDto {
   @IsOptional()
   track?: PkgTrack;
 
-  @ApiPropertyOptional({ description: 'Filter by specific category' })
+  @ApiPropertyOptional()
   @IsString()
   @IsOptional()
   category?: string;
 
-  @ApiPropertyOptional({ description: 'Filter published status (Admin only)' })
-  @Type(() => Boolean)
-  @IsBoolean()
+  @ApiPropertyOptional()
+  @IsString()
   @IsOptional()
-  is_published?: boolean;
+  search?: string;
+
+  @ApiPropertyOptional({ description: 'Mandatory package ID for users to fetch book references' })
+  @IsString()
+  @IsNotEmpty()
+  package_id: string; 
 }

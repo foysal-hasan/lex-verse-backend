@@ -1,46 +1,48 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsArray,
-  IsBoolean,
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { PkgProgram, PkgTrack } from 'src/generated/prisma/enums';
 
-
 export class CreateBookReferenceDto {
-  @ApiProperty({ enum: PkgProgram, isArray: true, example: [PkgProgram.bjs] })
-  @IsArray()
-  @IsEnum(PkgProgram, { each: true })
-  @IsNotEmpty()
-  program_type: PkgProgram[];
-
-  @ApiProperty({ enum: PkgTrack, isArray: true, example: [PkgTrack.preliminary] })
-  @IsArray()
-  @IsEnum(PkgTrack, { each: true })
-  @IsNotEmpty()
-  track: PkgTrack[];
-
-  @ApiProperty({ type: [String], example: ['Constitution', 'Articles'] })
-  @IsArray()
-  @IsString({ each: true })
-  @IsNotEmpty()
-  category: string[];
-
-  @ApiPropertyOptional({ example: 'Introduction to BJS Civil Law' })
+  @ApiProperty({ example: 'Introduction to Constitutional Law' })
   @IsString()
-  @IsOptional()
-  title?: string;
+  @IsNotEmpty()
+  title: string;
 
-  @ApiProperty({ example: 'Detailed text content of the reference material...' })
+  @ApiProperty({ example: 'Full markdown or HTML text content...' })
   @IsString()
   @IsNotEmpty()
   content: string;
+
+  @ApiProperty({ enum: PkgProgram, isArray: true, example: [PkgProgram.bar] })
+  @IsEnum(PkgProgram, { each: true })
+  @IsArray()
+  program_type: PkgProgram[];
+
+  @ApiPropertyOptional({ enum: PkgTrack, isArray: true, example: [PkgTrack.preliminary] })
+  @IsEnum(PkgTrack, { each: true })
+  @IsArray()
+  @IsOptional()
+  track?: PkgTrack[];
+
+  @ApiPropertyOptional({ type: [String], example: ['Constitutional'] })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  category?: string[];
 
   @ApiPropertyOptional({ default: true })
   @IsBoolean()
   @IsOptional()
   is_published?: boolean;
+
+  @ApiPropertyOptional({ default: false, description: 'True if only purchased users can view this book' })
+  @IsBoolean()
+  @IsOptional()
+  requires_purchase?: boolean;
+
+  @ApiPropertyOptional({ type: [String], description: 'Package IDs to attach on creation', example: ['pkg-uuid-1'] })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  package_ids?: string[];
 }

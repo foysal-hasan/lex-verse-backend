@@ -35,8 +35,7 @@ export class QuestionBankService {
     if (dto.pdf_path) fileUrls.push(dto.pdf_path);
     if (dto.pdf_url) fileUrls.push(dto.pdf_url);
 
-    if (fileUrls.length > 0) {
-      await this.queueDispatcher.enqueueFileAttachment(
+    if (fileUrls.length > 0) {await this.queueDispatcher.enqueueFileAttachment(
         FILE_UPLOAD_JOBS.MARK_ATTACHED,
         { urls: fileUrls },
       );

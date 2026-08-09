@@ -2,12 +2,11 @@ import { Module } from '@nestjs/common';
 import { BookReferenceService } from './book-reference.service';
 import { BookReferenceUserController } from './controllers/book-reference-user.controller';
 import { BookReferenceAdminController } from './controllers/book-reference-admin.controller';
-import { PrismaModule } from 'src/prisma/prisma.module';
+import { PackageAccessCronService } from './package-access-cron.service';
+
 
 @Module({
-  imports: [PrismaModule],
   controllers: [BookReferenceUserController, BookReferenceAdminController],
-  providers: [BookReferenceService],
-  exports: [BookReferenceService],
+  providers: [BookReferenceService,PackageAccessCronService],
 })
 export class BookReferenceModule {}
