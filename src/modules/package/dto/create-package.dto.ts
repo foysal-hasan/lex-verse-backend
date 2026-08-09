@@ -1,13 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { 
-  IsString, 
-  IsEnum, 
-  IsOptional, 
-  IsInt, 
-  IsBoolean, 
-  IsNumber, 
-  IsObject, 
-  IsDateString 
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsInt,
+  IsBoolean,
+  IsNumber,
+  IsObject,
+  IsDateString
 } from 'class-validator';
 import { PkgDuration, PkgKind, PkgProgram, PkgTrack } from 'src/generated/prisma/enums';
 
@@ -34,12 +34,12 @@ export class CreatePackageDto {
 
   @ApiProperty({ example: 'বিজেএস প্রিলিমিনারি ব্যাচ ২০২৬' })
   @IsString()
-  title_bn: string;
+  title: string;
 
   @ApiPropertyOptional({ example: 'সেরা প্রস্তুতি নিশ্চিত করুন' })
   @IsString()
   @IsOptional()
-  subtitle_bn?: string;
+  subtitle?: string;
 
   @ApiPropertyOptional({ example: 1 })
   @IsInt()
@@ -109,5 +109,10 @@ export class CreatePackageDto {
   @ApiPropertyOptional({ example: 1500.00, default: 0 })
   @IsNumber()
   @IsOptional()
-  price_bdt?: number;
+  price?: number;
+
+  @ApiPropertyOptional({ example: 1500.00, default: 0 })
+  @IsNumber()
+  @IsOptional()
+  discount_price?: number;
 }

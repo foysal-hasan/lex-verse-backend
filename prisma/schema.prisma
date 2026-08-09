@@ -182,8 +182,8 @@ model Package {
   track                          PkgTrack?
   kind                           PkgKind
   duration                       PkgDuration?
-  title_bn                       String
-  subtitle_bn                    String?
+  title                          String 
+  subtitle                       String?
   batch_number                   Int?
   is_active                      Boolean      @default(true)
   is_coming_soon                 Boolean      @default(false)
@@ -199,7 +199,8 @@ model Package {
   includes_all_notes             Boolean      @default(false)
   includes_all_qbanks            Boolean      @default(false)
   includes_all_premium           Boolean      @default(false)
-  price_bdt                      Decimal?     @default(0)
+  price                          Decimal?     @default(0)
+  discount_price                 Decimal?     @default(0)
 
   announcements           Announcement[]
   responses               Response[]
@@ -243,15 +244,15 @@ enum PkgReqStatus {
 
 // PackageAccessRequest Model (Manual bKash/Payment Request for Packages)
 model PackageAccessRequest {
-  id                  String       @id @default(uuid())
-  user_id             String
-  package_id          String
-  name                String
-  phone               String
-  transaction_id      String
-  message             String?
+  id             String  @id @default(uuid())
+  user_id        String
+  package_id     String
+  name           String
+  phone          String
+  transaction_id String
+  message        String?
 
-  payment_method      String
+  payment_method String
 
   status              PkgReqStatus @default(pending)
   decided_by          String?
@@ -1633,7 +1634,7 @@ model BookReference {
   deleted_at DateTime? @db.Timestamptz
 
   // relations
-  packages     Package[]
+  packages Package[]
 
   @@index([program_type, track, category], map: "book_refs_lookup_idx")
   @@index([program_type], type: Gin, map: "book_references_program_type_gin")

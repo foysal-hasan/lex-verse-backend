@@ -14,6 +14,7 @@ import {
 } from './dto/query-purchase.dto';
 import { ExtendGrantDto, RevokeGrantDto } from './dto/grant-actions.dto';
 import { PkgReqStatus, PkgAccStatus } from '@prisma/client';
+import { Prisma } from 'src/generated/prisma/client';
 
 @Injectable()
 export class PackagePurchaseService {
@@ -69,7 +70,7 @@ export class PackagePurchaseService {
         status: PkgReqStatus.pending,
       },
       include: {
-        package: { select: { id: true, title_bn: true, price_bdt: true } },
+        package: { select: { id: true, title: true, price: true, discount_price: true } },
       },
     });
   }
@@ -81,7 +82,7 @@ export class PackagePurchaseService {
     const { page = 1, limit = 10, status, search, sort = SortOrder.newest } = query;
     const skip = (page - 1) * limit;
 
-    const where: Record<string, any> = { user_id: userId };
+    const where: Prisma.PackageAccessRequestWhereInput = { user_id: userId };
     if (status) where.status = status;
     if (search) {
       where.OR = [
@@ -97,7 +98,7 @@ export class PackagePurchaseService {
         skip,
         take: limit,
         orderBy: { created_at: sort === SortOrder.newest ? 'desc' : 'asc' },
-        include: { package: { select: { id: true, title_bn: true, price_bdt: true } } },
+        include: { package: { select: { id: true, title: true, price: true, discount_price: true } } },
       }),
       this.prisma.packageAccessRequest.count({ where }),
     ]);
@@ -115,7 +116,7 @@ export class PackagePurchaseService {
     const { page = 1, limit = 10, status, package_id } = query;
     const skip = (page - 1) * limit;
 
-    const where: Record<string, any> = { user_id: userId };
+    const where: Prisma.UserPackageAccessWhereInput = { user_id: userId };
     if (status) where.status = status;
     if (package_id) where.package_id = package_id;
 
@@ -143,7 +144,7 @@ export class PackagePurchaseService {
     const { page = 1, limit = 10, status, user_id, search, sort = SortOrder.newest } = query;
     const skip = (page - 1) * limit;
 
-    const where: Record<string, any> = {};
+    const where: Prisma.PackageAccessRequestWhereInput = {};
     if (user_id) where.user_id = user_id;
     if (status) where.status = status;
     if (search) {
@@ -154,7 +155,7 @@ export class PackagePurchaseService {
       ];
     }
 
-    const [data, total] = await Promise.all([
+    const [items, total] = await Promise.all([
       this.prisma.packageAccessRequest.findMany({
         where,
         skip,
@@ -162,14 +163,14 @@ export class PackagePurchaseService {
         orderBy: { created_at: sort === SortOrder.newest ? 'desc' : 'asc' },
         include: {
           user: { select: { id: true, name: true, email: true } },
-          package: { select: { id: true, title_bn: true, price_bdt: true } },
+          package: { select: { id: true, title: true, price: true } },
         },
       }),
       this.prisma.packageAccessRequest.count({ where }),
     ]);
 
     return {
-      data,
+      items,
       meta: { total, page, limit, total_pages: Math.ceil(total / limit) },
     };
   }
@@ -244,7 +245,7 @@ export class PackagePurchaseService {
     if (package_id) where.package_id = package_id;
     if (status) where.status = status;
 
-    const [data, total] = await Promise.all([
+    const [items, total] = await Promise.all([
       this.prisma.userPackageAccess.findMany({
         where,
         skip,
@@ -252,7 +253,7 @@ export class PackagePurchaseService {
         orderBy: { granted_at: 'desc' },
         include: {
           user: { select: { id: true, name: true, email: true } },
-          package: { select: { id: true, title_bn: true, price_bdt: true } },
+          package: { select: { id: true, title: true, price: true, discount_price: true } },
           granted_by_user: { select: { id: true, name: true } },
           revoked_by_user: { select: { id: true, name: true } },
         },
@@ -261,7 +262,7 @@ export class PackagePurchaseService {
     ]);
 
     return {
-      data,
+      items,
       meta: { total, page, limit, total_pages: Math.ceil(total / limit) },
     };
   }
@@ -320,7 +321,7 @@ export class PackagePurchaseService {
         orderBy: { created_at: 'asc' },
         include: {
           user: { select: { id: true, name: true, email: true } },
-          package: { select: { id: true, title_bn: true } },
+          package: { select: { id: true, title: true } },
         },
       }),
       this.prisma.packageAccessRequest.findMany({
@@ -371,7 +372,7 @@ export class PackagePurchaseService {
       this.prisma.package.count(),
     ]);
 
-    const data = packages.map((pkg) => {
+    const items = packages.map((pkg) => {
       const activeCount = pkg.user_accesses.filter(a => a.status === PkgAccStatus.active).length;
       const expiredCount = pkg.user_accesses.filter(a => a.status === PkgAccStatus.expired).length;
       const revokedCount = pkg.user_accesses.filter(a => a.status === PkgAccStatus.revoked).length;
@@ -395,8 +396,9 @@ export class PackagePurchaseService {
 
       return {
         package_id: pkg.id,
-        package_name: pkg.title_bn,
-        price: pkg.price_bdt,
+        package_name: pkg.title,
+        price: pkg.price,
+        discount_price: pkg.discount_price,
         metrics: {
           active: activeCount,
           expired: expiredCount,
@@ -409,7 +411,7 @@ export class PackagePurchaseService {
     });
 
     return {
-      data,
+      items,
       meta: { total, page, limit, total_pages: Math.ceil(total / limit) },
     };
   }

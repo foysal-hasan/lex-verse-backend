@@ -3,6 +3,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreatePackageDto } from './dto/create-package.dto';
 import { UpdatePackageDto } from './dto/update-package.dto';
 import { FilterPackageDto } from './dto/filter-package.dto';
+import { Prisma } from 'src/generated/prisma/client';
 
 @Injectable()
 export class PackageService {
@@ -28,15 +29,15 @@ export class PackageService {
     
     const skip = (page - 1) * limit;
 
-    const where: any = {
+    const where: Prisma.PackageWhereInput = {
       is_active: true,
       ...(program && { program }),
       ...(track && { track }),
       ...(kind && { kind }),
       ...(search && {
         OR: [
-          { title_bn: { contains: search, mode: 'insensitive' } },
-          { subtitle_bn: { contains: search, mode: 'insensitive' } },
+          { title: { contains: search, mode: 'insensitive' } },
+          { subtitle: { contains: search, mode: 'insensitive' } },
         ],
       }),
     };
@@ -77,15 +78,15 @@ export class PackageService {
     
     const skip = (page - 1) * limit;
 
-    const where: any = {
+    const where: Prisma.PackageWhereInput = {
       ...(program && { program }),
       ...(track && { track }),
       ...(kind && { kind }),
       ...(is_active !== undefined && { is_active }),
       ...(search && {
         OR: [
-          { title_bn: { contains: search, mode: 'insensitive' } },
-          { subtitle_bn: { contains: search, mode: 'insensitive' } },
+          { title: { contains: search, mode: 'insensitive' } },
+          { subtitle: { contains: search, mode: 'insensitive' } },
         ],
       }),
     };

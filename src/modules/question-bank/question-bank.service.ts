@@ -18,6 +18,7 @@ import { Tier } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import appConfig from 'src/config/app.config';
+import { Prisma } from 'src/generated/prisma/client';
 
 @Injectable()
 export class QuestionBankService {
@@ -133,7 +134,7 @@ export class QuestionBankService {
     const skip = (page - 1) * limit;
 
     // Dynamic Filter Object
-    const where: Record<string, any> = { deleted_at: null };
+    const where: Prisma.QuestionBankWhereInput= { deleted_at: null };
 
     // Published Status Handling
     if (!isAdmin) {
@@ -239,7 +240,7 @@ export class QuestionBankService {
         take: limit,
         orderBy,
         include: {
-          package: { select: { id: true, title_bn: true, price_bdt: true } },
+          package: { select: { id: true, title: true, price: true, discount_price: true } },
         },
       }),
       this.prisma.questionBank.count({ where }),
@@ -259,7 +260,7 @@ export class QuestionBankService {
     });
 
     return {
-      data: formattedData,
+      items: formattedData,
       meta: {
         total,
         page,
@@ -275,7 +276,7 @@ export class QuestionBankService {
   async findOne(id: string, userId?: string, isAdmin = false) {
     const qb = await this.prisma.questionBank.findFirst({
       where: { id, deleted_at: null },
-      include: { package: { select: { id: true, title_bn: true, price_bdt: true } } },
+      include: { package: { select: { id: true, title: true, price: true, discount_price: true } } },
     });
 
     if (!qb) {
