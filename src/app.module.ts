@@ -21,6 +21,7 @@ import { QuestionBankPurchaseModule } from './modules/question-bank-purchase/que
 import { FlashcardModule } from './modules/flashcard/flashcard.module';
 import { BookReferenceModule } from './modules/book-reference/book-reference.module';
 import { PackagePurchaseModule } from './modules/package-purchase/package-purchase.module';
+import { SuggestionModule } from './modules/suggestion/suggestion.module';
 
 
 @Module({
@@ -60,6 +61,7 @@ import { PackagePurchaseModule } from './modules/package-purchase/package-purcha
     FlashcardModule,
     BookReferenceModule,
     PackagePurchaseModule,
+    SuggestionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

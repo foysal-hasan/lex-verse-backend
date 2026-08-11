@@ -230,6 +230,7 @@ model Package {
   written_submissions     WrittenSubmission[]
   question_banks          QuestionBank[]
   book_references         BookReference[]
+  suggestions             Suggestions[]
 
   @@map("packages")
 }
@@ -1663,6 +1664,33 @@ model BookSuggestion {
   @@index([program_type, track, category, order_index], map: "idx_book_suggestions_lookup")
   @@index([deleted_at], map: "idx_book_suggestions_deleted_at")
   @@map("book_suggestions")
+}
+
+
+model Suggestions {
+  id            String    @id @default(uuid())
+  created_at    DateTime  @default(now()) @db.Timestamptz
+  updated_at    DateTime  @updatedAt @db.Timestamptz
+  deleted_at    DateTime? @db.Timestamptz
+
+  parent_id     String?
+  category      String?
+  title         String
+  content       String?
+  program_types PkgProgram[] @default([])
+  tracks        PkgTrack[] @default([])
+  is_active     Boolean @default(false)
+  created_by    String?
+  requires_purchase Boolean  @default(false)
+
+  // Self-relation for parent_id (hierarchical tree structure)
+  parent           Suggestions?     @relation("SuggestionHierarchy", fields: [parent_id], references: [id], onDelete: Cascade)
+  children         Suggestions[]    @relation("SuggestionHierarchy")
+
+  // relations
+  packages Package[]
+ 
+  @@map("suggestions")
 }
 
 model UserScoreHistoryBak20260424 {
