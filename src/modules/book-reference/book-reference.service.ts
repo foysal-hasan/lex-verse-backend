@@ -53,7 +53,7 @@ export class BookReferenceService {
       ];
     }
 
-    const [data, total] = await Promise.all([
+    const [items, total] = await Promise.all([
       this.prisma.bookReference.findMany({
         where,
         skip,
@@ -67,7 +67,7 @@ export class BookReferenceService {
     ]);
 
     return {
-      data,
+      items,
       meta: { total, page, limit, total_pages: Math.ceil(total / limit) },
     };
   }
@@ -149,6 +149,84 @@ export class BookReferenceService {
 
   // -------------------------------------------------------------
   // USER: Fetch by Mandatory Package ID with Purchase Validation
+  // This version return only purchased resources
+  // -------------------------------------------------------------
+  // async findAllForUser(userId: string, query: QueryBookReferenceDto) {
+  //   const { page = 1, limit = 10, package_id, search, category, track } = query;
+  //   const skip = (page - 1) * limit;
+
+  //   // 1. Validate that the target package exists
+  //   const pkg = await this.prisma.package.findUnique({ where: { id: package_id } });
+  //   if (!pkg) {
+  //     throw new NotFoundException('Package not found');
+  //   }
+
+  //   // 2. Validate if the user has active access to this package
+  //   const userAccess = await this.prisma.userPackageAccess.findUnique({
+  //     where: {
+  //       user_id_package_id: {
+  //         user_id: userId,
+  //         package_id: package_id,
+  //       },
+  //     },
+  //   });
+
+  //   const hasActivePurchase =
+  //     userAccess &&
+  //     userAccess.status === PkgAccStatus.active &&
+  //     (!userAccess.expires_at || new Date(userAccess.expires_at) > new Date());
+
+  //   // 3. Construct base query filters
+  //   const where: Record<string, any> = {
+  //     deleted_at: null,
+  //     is_published: true,
+  //     packages: { some: { id: package_id } },
+  //   };
+
+  //   if (category) where.category = { has: category };
+  //   if (track) where.track = { has: track };
+  //   if (search) {
+  //     where.OR = [
+  //       { title: { contains: search, mode: 'insensitive' } },
+  //       { content: { contains: search, mode: 'insensitive' } },
+  //     ];
+  //   }
+
+  //   // 4. If user does NOT have an active purchase, restrict them to public resources only
+  //   if (!hasActivePurchase) {
+  //     where.requires_purchase = false;
+  //   }
+
+  //   const [items, total] = await Promise.all([
+  //     this.prisma.bookReference.findMany({
+  //       where,
+  //       skip,
+  //       take: limit,
+  //       orderBy: { created_at: 'desc' },
+  //       select: {
+  //         id: true,
+  //         title: true,
+  //         content: true,
+  //         category: true,
+  //         track: true,
+  //         program_type: true,
+  //         requires_purchase: true,
+  //         created_at: true,
+  //       },
+  //     }),
+  //     this.prisma.bookReference.count({ where }),
+  //   ]);
+
+  //   return {
+  //     items,
+  //     has_active_purchase: !!hasActivePurchase,
+  //     meta: { total, page, limit, total_pages: Math.ceil(total / limit) },
+  //   };
+  // }
+
+
+  // -------------------------------------------------------------
+  // USER: Fetch All Book References for Package with Lock/Content Control
   // -------------------------------------------------------------
   async findAllForUser(userId: string, query: QueryBookReferenceDto) {
     const { page = 1, limit = 10, package_id, search, category, track } = query;
@@ -175,7 +253,7 @@ export class BookReferenceService {
       userAccess.status === PkgAccStatus.active &&
       (!userAccess.expires_at || new Date(userAccess.expires_at) > new Date());
 
-    // 3. Construct base query filters
+    // 3. Construct base query filters (Returns ALL published books for this package)
     const where: Record<string, any> = {
       deleted_at: null,
       is_published: true,
@@ -191,21 +269,15 @@ export class BookReferenceService {
       ];
     }
 
-    // 4. If user does NOT have an active purchase, restrict them to public resources only
-    if (!hasActivePurchase) {
-      where.requires_purchase = false;
-    }
-
-    const [data, total] = await Promise.all([
+    const [rawItems, total] = await Promise.all([
       this.prisma.bookReference.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: 'asc' },
         select: {
           id: true,
           title: true,
-          content: true,
           category: true,
           track: true,
           program_type: true,
@@ -216,8 +288,24 @@ export class BookReferenceService {
       this.prisma.bookReference.count({ where }),
     ]);
 
+    // 4. Map items to include the `is_locked` flag and protect content if locked
+    const items = rawItems.map((book) => {
+      const is_locked = book.requires_purchase && !hasActivePurchase;
+
+      return {
+        id: book.id,
+        title: book.title,
+        category: book.category,
+        track: book.track,
+        program_type: book.program_type,
+        requires_purchase: book.requires_purchase,
+        created_at: book.created_at,
+        is_locked,
+      };
+    });
+
     return {
-      data,
+      items,
       has_active_purchase: !!hasActivePurchase,
       meta: { total, page, limit, total_pages: Math.ceil(total / limit) },
     };

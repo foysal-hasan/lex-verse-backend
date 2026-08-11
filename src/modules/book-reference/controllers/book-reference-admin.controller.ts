@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Req,
+  UseInterceptors,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -19,12 +20,14 @@ import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guard/role/roles.guard';
 import { Roles } from 'src/common/guard/role/roles.decorator';
 import { UserRole } from 'src/generated/prisma/enums';
+import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 
 @ApiTags('Admin - Book References')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.admin)
 @Controller('admin/book-references')
+@UseInterceptors(TransformResponseInterceptor)
 export class BookReferenceAdminController {
   constructor(private readonly bookReferenceService: BookReferenceService) {}
 
