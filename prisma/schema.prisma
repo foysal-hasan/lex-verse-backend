@@ -51,6 +51,15 @@ model User {
 
   email_verified_at DateTime? @db.Timestamptz
 
+  // for system users
+  designation String?
+  credential  String?
+  bio         String? @db.Text
+  facebook    String?
+  twitter     String?
+  instagram   String?
+  linkedin    String?
+
   mentor_ratings_given    MentorRating[]        @relation("UserRatings")
   mentor_ratings_recv     MentorRating[]        @relation("MentorRatings")
   roadmap_progress        UserRoadmapProgress[]
@@ -190,7 +199,6 @@ enum PkgTrack {
   written
 }
 
-
 // Package Model
 model Package {
   id                             String       @id @default(uuid())
@@ -198,7 +206,7 @@ model Package {
   track                          PkgTrack?
   kind                           PkgKind
   duration                       PkgDuration?
-  title                          String 
+  title                          String
   subtitle                       String?
   batch_number                   Int?
   is_active                      Boolean      @default(true)
@@ -1175,28 +1183,28 @@ model Book {
 }
 
 model Article {
-  id               String    @id @default(uuid())
-  title            String
-  slug             String    @unique
-  description      String?
-  content          String?
-  cover_image      String?
-  author           String?
-  author_id        String?
-  tags             String[]
-  published_at     DateTime? @db.Timestamptz
-  created_at       DateTime  @default(now()) @db.Timestamptz
-  updated_at       DateTime  @default(now()) @db.Timestamptz
-  excerpt          String?
-  banner_image_url String?
-  author_image     String?
-  category         String?
-  is_published     Boolean   @default(false)
-  meta_title       String?
-  meta_description String?
-  keywords         String[]
-  read_minutes     Int?
-  view_count       Int       @default(0)
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  title        String
+  slug         String    @unique
+  excerpt      String?
+  content      String?
+  category     String?
+  tags         String[]
+  cover_image  String?
+  banner_image String?
+  published_at DateTime? @db.Timestamptz
+  is_published Boolean   @default(false)
+  author_id    String?
+
+  seo_meta_title       String?
+  seo_meta_description String?
+  seo_keywords         String[]
+
+  read_minutes Int?
+  view_count   Int  @default(0)
 
   user User? @relation(fields: [author_id], references: [id], onDelete: SetNull)
 
@@ -1629,8 +1637,8 @@ model BookReference {
   title   String?
   content String
 
-  is_published Boolean @default(true)
-  requires_purchase Boolean  @default(false)
+  is_published      Boolean @default(true)
+  requires_purchase Boolean @default(false)
 
   created_by String?
   deleted_at DateTime? @db.Timestamptz
@@ -1666,30 +1674,29 @@ model BookSuggestion {
   @@map("book_suggestions")
 }
 
-
 model Suggestions {
-  id            String    @id @default(uuid())
-  created_at    DateTime  @default(now()) @db.Timestamptz
-  updated_at    DateTime  @updatedAt @db.Timestamptz
-  deleted_at    DateTime? @db.Timestamptz
+  id         String    @id @default(uuid())
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @updatedAt @db.Timestamptz
+  deleted_at DateTime? @db.Timestamptz
 
-  parent_id     String?
-  category      String?
-  title         String
-  content       String?
-  program_types PkgProgram[] @default([])
-  tracks        PkgTrack[] @default([])
-  is_active     Boolean @default(false)
-  created_by    String?
-  requires_purchase Boolean  @default(false)
+  parent_id         String?
+  category          String?
+  title             String
+  content           String?
+  program_types     PkgProgram[] @default([])
+  tracks            PkgTrack[]   @default([])
+  is_active         Boolean      @default(false)
+  created_by        String?
+  requires_purchase Boolean      @default(false)
 
   // Self-relation for parent_id (hierarchical tree structure)
-  parent           Suggestions?     @relation("SuggestionHierarchy", fields: [parent_id], references: [id], onDelete: Cascade)
-  children         Suggestions[]    @relation("SuggestionHierarchy")
+  parent   Suggestions?  @relation("SuggestionHierarchy", fields: [parent_id], references: [id], onDelete: Cascade)
+  children Suggestions[] @relation("SuggestionHierarchy")
 
   // relations
   packages Package[]
- 
+
   @@map("suggestions")
 }
 

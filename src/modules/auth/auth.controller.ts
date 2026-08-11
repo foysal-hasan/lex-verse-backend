@@ -69,7 +69,7 @@ export class AuthController {
     const response = await this.authService.me(user_id);
     if (response.data.avatar_url) {
       const key = `${appConfig().storageUrl.avatar}${response.data.avatar_url}`;
-      response.data.avatar_url = await Storage.url(key);
+      response.data.avatar_url = Storage.url(key);
     }
     return response;
   }

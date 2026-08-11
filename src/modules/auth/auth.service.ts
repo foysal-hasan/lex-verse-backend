@@ -109,6 +109,34 @@ export class AuthService {
       data.avatar_url = updateUserDto.avatar;
     }
 
+    if (updateUserDto.designation) {
+      data.designation = updateUserDto.designation;
+    }
+
+    if (updateUserDto.credential) {
+      data.credential = updateUserDto.credential;
+    }
+
+    if (updateUserDto.bio) {
+      data.bio = updateUserDto.bio;
+    }
+
+    if (updateUserDto.facebook) {
+      data.facebook = updateUserDto.facebook;
+    }
+
+    if (updateUserDto.twitter) {
+      data.twitter = updateUserDto.twitter;
+    }
+
+    if (updateUserDto.instagram) {
+      data.instagram = updateUserDto.instagram;
+    }
+
+    if (updateUserDto.linkedin) {
+      data.linkedin = updateUserDto.linkedin;
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });

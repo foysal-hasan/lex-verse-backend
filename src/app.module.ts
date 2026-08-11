@@ -22,6 +22,7 @@ import { FlashcardModule } from './modules/flashcard/flashcard.module';
 import { BookReferenceModule } from './modules/book-reference/book-reference.module';
 import { PackagePurchaseModule } from './modules/package-purchase/package-purchase.module';
 import { SuggestionModule } from './modules/suggestion/suggestion.module';
+import { ArticleModule } from './modules/article/article.module';
 
 
 @Module({
@@ -62,6 +63,7 @@ import { SuggestionModule } from './modules/suggestion/suggestion.module';
     BookReferenceModule,
     PackagePurchaseModule,
     SuggestionModule,
+    ArticleModule,
   ],
   controllers: [AppController],
   providers: [AppService],
