@@ -31,7 +31,7 @@ export class CreateArticleDto {
   @IsString()
   @IsNotEmpty()
   @IsUUID()
-  user_id: string;
+  author_id: string;
 
   @ApiPropertyOptional({ example: 'Legal' })
   @IsString()

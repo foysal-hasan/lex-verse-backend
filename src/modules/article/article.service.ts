@@ -3,6 +3,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { QueryAdminArticleDto, QueryArticleDto } from './dto/query.article.dto';
+import { Storage } from 'src/common/lib/Disk/Storage';
 
 @Injectable()
 export class ArticlesService {
@@ -11,6 +12,9 @@ export class ArticlesService {
   // --- ADMIN: CRUD ---
 
   async create(dto: CreateArticleDto) {
+    const author = await this.prisma.user.findUnique({ where: { id: dto.author_id } });
+    if (!author) throw new NotFoundException('Author not found');
+
     // Check if custom slug already exists
     const existingSlug = await this.prisma.article.findUnique({ where: { slug: dto.slug } });
     if (existingSlug) {
@@ -21,11 +25,10 @@ export class ArticlesService {
       data: {
         ...dto,
         slug: dto.slug,
-        author_id: dto.user_id,
         published_at: dto.is_published ? new Date() : null,
       },
       include: {
-        user: {
+        author: {
           select: { id: true, name: true, email: true, avatar_url: true },
         },
       },
@@ -56,11 +59,27 @@ export class ArticlesService {
         skip,
         take: limit,
         orderBy: { created_at: 'desc' },
-        include: {
-          user: {
-            select: { id: true, name: true, email: true, avatar_url: true },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          excerpt: true,
+          category: true,
+          published_at: true,
+          view_count: true,
+          tags: true,
+          banner_image: true,
+          cover_image: true,
+          author: {
+            select: {
+              id: true,
+              name: true,
+              avatar_url: true,
+              designation: true,
+              credential: true,
+            },
           },
-        },
+        }
       }),
       this.prisma.article.count({ where }),
     ]);
@@ -94,12 +113,25 @@ export class ArticlesService {
     return this.prisma.article.update({
       where: { id },
       data: updateData,
+      include: {
+        author: {
+          select: { id: true, name: true, email: true, avatar_url: true },
+        },
+      },
     });
   }
 
   async remove(id: string) {
     const article = await this.prisma.article.findUnique({ where: { id } });
     if (!article) throw new NotFoundException('Article not found');
+
+    // Delete the banner image and cover image from the storage
+    if (article.banner_image) {
+      await Storage.delete(article.banner_image);
+    }
+    if (article.cover_image) {
+      await Storage.delete(article.cover_image);
+    }
 
     return this.prisma.article.delete({ where: { id } });
   }
@@ -131,11 +163,27 @@ export class ArticlesService {
         skip,
         take: limit,
         orderBy: { published_at: 'desc' },
-        include: {
-          user: {
-            select: { id: true, name: true, avatar_url: true, designation: true, credential: true, },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          excerpt: true,
+          category: true,
+          published_at: true,
+          banner_image: true,
+          cover_image: true,
+          view_count: true,
+          tags: true,
+          author: {
+            select: {
+              id: true,
+              name: true,
+              avatar_url: true,
+              designation: true,
+              credential: true,
+            },
           },
-        },
+        }
       }),
       this.prisma.article.count({ where }),
     ]);
@@ -150,16 +198,16 @@ export class ArticlesService {
     const article = await this.prisma.article.findUnique({
       where: { slug, is_published: true },
       include: {
-        user: {
-          select: { 
-            id: true, 
+        author: {
+          select: {
+            id: true,
             created_at: true,
             updated_at: true,
-            name: true, 
+            name: true,
             email: true,
-            avatar_url: true, 
-            designation: true, 
-            credential: true, 
+            avatar_url: true,
+            designation: true,
+            credential: true,
             linkedin: true,
             twitter: true,
             facebook: true,

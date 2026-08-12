@@ -17,17 +17,17 @@ export class QueryArticleDto {
   @IsOptional()
   limit?: number = 10;
 
-  @ApiPropertyOptional({ example: 'constitutional' })
+  @ApiPropertyOptional({ description: 'Search articles by title, slug, or excerpt' })
   @IsString()
   @IsOptional()
   search?: string;
 
-  @ApiPropertyOptional({ example: 'Legal' })
+  @ApiPropertyOptional({ description: 'Filter articles by category' })
   @IsString()
   @IsOptional()
   category?: string;
 
-  @ApiPropertyOptional({ example: 'law' })
+  @ApiPropertyOptional({ description: 'Filter articles by tag' })
   @IsString()
   @IsOptional()
   tag?: string;
@@ -49,22 +49,22 @@ export class QueryAdminArticleDto {
   @IsOptional()
   limit?: number = 10;
 
-  @ApiPropertyOptional({ example: 'constitutional' })
+  @ApiPropertyOptional({ description: 'Search articles by title, slug, or excerpt' })
   @IsString()
   @IsOptional()
   search?: string;
 
-  @ApiPropertyOptional({ example: 'Legal' })
+  @ApiPropertyOptional({ description: 'Filter articles by category' })
   @IsString()
   @IsOptional()
   category?: string;
 
-  @ApiPropertyOptional({ example: 'law' })
+  @ApiPropertyOptional({ description: 'Filter articles by tag' })
   @IsString()
   @IsOptional()
   tag?: string;
 
-  @ApiPropertyOptional({ example: true, description: 'Filter by published status' })
+  @ApiPropertyOptional({ description: 'Filter by published status' })
   @Type(() => Boolean)
   @IsBoolean()
   @IsOptional()

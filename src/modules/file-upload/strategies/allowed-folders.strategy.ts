@@ -4,10 +4,10 @@ import { FolderStrategy } from '../interfaces/folder-strategy.interface';
 export enum AllowedUploadFolders {
   LEGAL_RESEARCH = 'legal-research',
   LEGAL_DICTIONARY = 'legal-dictionary',
-  USER_PROFILES = 'user-profiles',
   QUIZZES = 'quizzes',
   PACKAGES = 'packages',
   BARE_ACTS = 'bare-acts',
+  ARTICLES = 'articles',
 }
 
 @Injectable()

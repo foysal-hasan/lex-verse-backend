@@ -27,9 +27,9 @@ export class AdminArticlesController {
   @ApiOperation({ summary: 'Create a new article (Admin)' })
   async create(@Body() dto: CreateArticleDto) {
     const response = await this.articlesService.create(dto);
-    if(response?.user?.avatar_url){
-      const key = `${appConfig().storageUrl.avatar}${response.user.avatar_url}`;
-      response.user.avatar_url = Storage.url(key);
+    if(response?.author?.avatar_url){
+      const key = `${appConfig().storageUrl.avatar}${response.author.avatar_url}`;
+      response.author.avatar_url = Storage.url(key);
     }
 
     if(response?.banner_image) response.banner_image = Storage.url(response.banner_image);
@@ -40,14 +40,30 @@ export class AdminArticlesController {
 
   @Get()
   @ApiOperation({ summary: 'View list of all articles (Admin)' })
-  findAll(@Query() query: QueryAdminArticleDto) {
-    return this.articlesService.findAllForAdmin(query);
+  async findAll(@Query() query: QueryAdminArticleDto) {
+    const response = await this.articlesService.findAllForAdmin(query);
+      response?.items?.forEach(item => {
+        if(item?.author?.avatar_url){
+          const key = `${appConfig().storageUrl.avatar}${item.author.avatar_url}`;
+          item.author.avatar_url = Storage.url(key);
+        }
+        if(item?.banner_image) item.banner_image = Storage.url(item.banner_image);
+        if(item?.cover_image) item.cover_image = Storage.url(item.cover_image);
+      })
+    return response;
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update an article (Admin)' })
-  update(@Param('id') id: string, @Body() dto: UpdateArticleDto) {
-    return this.articlesService.update(id, dto);
+  async update(@Param('id') id: string, @Body() dto: UpdateArticleDto) {
+    const response = await this.articlesService.update(id, dto);
+    if(response?.author?.avatar_url){
+      const key = `${appConfig().storageUrl.avatar}${response.author.avatar_url}`;
+      response.author.avatar_url = Storage.url(key);
+    }
+    if(response?.banner_image) response.banner_image = Storage.url(response.banner_image);
+    if(response?.cover_image) response.cover_image = Storage.url(response.cover_image);
+    return response;
   }
 
   @Delete(':id')

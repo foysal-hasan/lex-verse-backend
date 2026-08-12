@@ -1206,7 +1206,7 @@ model Article {
   read_minutes Int?
   view_count   Int  @default(0)
 
-  user User? @relation(fields: [author_id], references: [id], onDelete: SetNull)
+  author User? @relation(fields: [author_id], references: [id], onDelete: SetNull)
 
   @@index([is_published, published_at(sort: Desc)], map: "articles_published_at_idx")
   @@index([category], map: "articles_category_idx")
