@@ -8,6 +8,7 @@ export enum AllowedUploadFolders {
   PACKAGES = 'packages',
   BARE_ACTS = 'bare-acts',
   ARTICLES = 'articles',
+  NOTES = 'notes',
 }
 
 @Injectable()

@@ -1,0 +1,3 @@
+1. Test note and purchase note endpoints
+2. on delete note => delete files as well
+

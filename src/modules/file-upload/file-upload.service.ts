@@ -37,6 +37,7 @@ export class FileUploadService {
 
     return {
       filename: file.originalname,
+      mimetype: file.mimetype,
       path: key,
       url: fileUrl,
     };

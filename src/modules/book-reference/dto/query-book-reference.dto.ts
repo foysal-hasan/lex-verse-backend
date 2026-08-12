@@ -39,7 +39,7 @@ export class QueryBookReferenceDto {
   search?: string;
 
   @ApiPropertyOptional({ description: 'Mandatory package ID for users to fetch book references' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  package_id: string; 
+  package_id?: string; 
 }

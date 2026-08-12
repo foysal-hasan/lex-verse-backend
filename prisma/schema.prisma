@@ -239,6 +239,7 @@ model Package {
   question_banks          QuestionBank[]
   book_references         BookReference[]
   suggestions             Suggestions[]
+  notes                   Note[]
 
   @@map("packages")
 }
@@ -2292,29 +2293,69 @@ model ExamArchivePdf {
   @@map("exam_archive_pdfs")
 }
 
+enum NoteTier {
+  free
+  premium
+}
+
 model Note {
-  id                 String   @id @default(uuid())
-  title              String
-  description        String?
-  content            String?
-  category           String?
-  file_url           String?
-  section            String   @default("general")
-  tier               String   @default("free")
-  price_bdt          Int      @default(0)
-  file_path          String?
-  file_mime          String?
-  created_at         DateTime @default(now()) @db.Timestamptz
-  is_published       Boolean  @default(true)
-  allow_download     Boolean  @default(true)
-  free_preview_pages Int      @default(0)
-  package_ids        String[] @default([])
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @default(now()) @db.Timestamptz
+
+  title             String
+  description       String?
+  subject           String   @default("general")
+  tier              NoteTier @default(free)
+  file_path         String?
+  file_mime         String?
+  preview_file_path String?
+  preview_file_mime String?
+  price             Decimal  @default(0)
+  discount_price    Decimal  @default(0)
+  is_published      Boolean  @default(true)
+
+  download_count Int @default(0)
 
   // relations
   note_purchases NotePurchase[]
+  packages       Package[]
 
-  @@index([package_ids], map: "notes_package_ids_gin", type: Gin)
   @@map("notes")
+}
+
+enum NotePurchaseStatus {
+  pending
+  paid
+  refunded
+  rejected
+  failed
+}
+
+model NotePurchase {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_id        String
+  note_id        String
+  amount         Decimal            @default(0)
+  sender_phone   String
+  transaction_id String
+  payment_method String
+  status         NotePurchaseStatus @default(pending)
+
+  admin_note  String?
+  reviewed_by String?
+  reviewed_at DateTime? @db.Timestamptz
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  note Note @relation(fields: [note_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id], map: "idx_np_user")
+  @@index([note_id], map: "idx_np_note")
+  @@index([status], map: "idx_np_status")
+  @@map("note_purchases")
 }
 
 model NoteTag {
@@ -2337,30 +2378,6 @@ model NoteTagMap {
 
   @@id([note_id, tag_id])
   @@map("note_tag_map")
-}
-
-model NotePurchase {
-  id             String    @id @default(uuid())
-  user_id        String
-  note_id        String
-  amount_bdt     Int       @default(0)
-  transaction_id String
-  sender_phone   String
-  status         String    @default("pending")
-  created_at     DateTime  @default(now()) @db.Timestamptz
-  payment_ref    String?
-  admin_note     String?
-  reviewed_by    String?
-  reviewed_at    DateTime? @db.Timestamptz
-  updated_at     DateTime  @default(now()) @db.Timestamptz
-
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  note Note @relation(fields: [note_id], references: [id], onDelete: Cascade)
-
-  @@index([user_id], map: "idx_np_user")
-  @@index([note_id], map: "idx_np_note")
-  @@index([status], map: "idx_np_status")
-  @@map("note_purchases")
 }
 
 model DownloadEvent {

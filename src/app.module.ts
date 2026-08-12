@@ -23,6 +23,8 @@ import { BookReferenceModule } from './modules/book-reference/book-reference.mod
 import { PackagePurchaseModule } from './modules/package-purchase/package-purchase.module';
 import { SuggestionModule } from './modules/suggestion/suggestion.module';
 import { ArticleModule } from './modules/article/article.module';
+import { NoteModule } from './modules/note/note.module';
+import { NotePurchaseModule } from './modules/note-purchase/note-purchase.module';
 
 
 @Module({
@@ -64,6 +66,8 @@ import { ArticleModule } from './modules/article/article.module';
     PackagePurchaseModule,
     SuggestionModule,
     ArticleModule,
+    NoteModule,
+    NotePurchaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],
