@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateBookReferenceDto } from './dto/create-book-reference.dto';
@@ -231,6 +232,8 @@ export class BookReferenceService {
   async findAllForUser(userId: string, query: QueryBookReferenceDto) {
     const { page = 1, limit = 10, package_id, search, category, track } = query;
     const skip = (page - 1) * limit;
+
+    if (!package_id) throw new BadRequestException('Package ID is required');
 
     // 1. Validate that the target package exists
     const pkg = await this.prisma.package.findUnique({ where: { id: package_id } });

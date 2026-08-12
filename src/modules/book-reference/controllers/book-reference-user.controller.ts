@@ -25,14 +25,14 @@ export class BookReferenceUserController {
   @Get()
   @ApiOperation({ summary: 'Fetch book references by mandatory package ID with purchase validation (User)' })
   findAllForUser(@Query() query: QueryBookReferenceDto, @Req() req: Request) {
-    const userId = (req.user as any).userId;
+    const userId = req.user.userId;
     return this.bookReferenceService.findAllForUser(userId, query);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get single book reference with strict purchase security (User)' })
   findOneForUser(@Param('id') id: string, @Req() req: Request) {
-    const userId = (req.user as any).userId;
+    const userId = req.user.userId;
     return this.bookReferenceService.findOneForUser(id, userId);
   }
 }

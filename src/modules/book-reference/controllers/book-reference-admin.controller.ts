@@ -21,6 +21,7 @@ import { RolesGuard } from 'src/common/guard/role/roles.guard';
 import { Roles } from 'src/common/guard/role/roles.decorator';
 import { UserRole } from 'src/generated/prisma/enums';
 import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
+import { QueryBookReferenceDto } from '../dto/query-book-reference.dto';
 
 @ApiTags('Admin - Book References')
 @ApiBearerAuth()
@@ -40,7 +41,7 @@ export class BookReferenceAdminController {
 
   @Get()
   @ApiOperation({ summary: 'List all book references without package restriction (Admin)' })
-  findAll(@Query() query: any) {
+  findAll(@Query() query: QueryBookReferenceDto) {
     return this.bookReferenceService.findAllAdmin(query);
   }
 
