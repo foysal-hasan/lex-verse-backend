@@ -81,6 +81,35 @@ export class NoteService {
     return this.prisma.note.delete({ where: { id } });
   }
 
+
+  async attachPackages(noteId: string, packageIds: string[]) {
+    await this.findOneAdmin(noteId);
+
+    return this.prisma.note.update({
+      where: { id: noteId },
+      data: {
+        packages: {
+          connect: packageIds.map((id) => ({ id })),
+        },
+      },
+      include: { packages: { select: { id: true, title: true } } },
+    });
+  }
+
+  async detachPackages(noteId: string, packageIds: string[]) {
+    await this.findOneAdmin(noteId);
+
+    return this.prisma.note.update({
+      where: { id: noteId },
+      data: {
+        packages: {
+          disconnect: packageIds.map((id) => ({ id })),
+        },
+      },
+      include: { packages: { select: { id: true, title: true } } },
+    });
+  }
+
   // ================= USER METHODS =================
   async findAllForUser(userId: string, query: QueryNoteDto) {
     const { page = 1, limit = 10, search, subject, tier, package_id } = query;
@@ -138,6 +167,7 @@ export class NoteService {
         tier: note.tier,
         price: note.price.toNumber(),
         discount_price: note.discount_price.toNumber(),
+        file_mime: note.file_mime,
         preview_file_path: note.preview_file_path,
         preview_file_mime: note.preview_file_mime,
         packages: note.packages,
@@ -150,6 +180,65 @@ export class NoteService {
     return {
       items,
       meta: { total, page, limit, total_pages: Math.ceil(total / limit) },
+    };
+  }
+
+  async findOneForUser(id: string, userId: string) {
+    const note = await this.prisma.note.findUnique({
+      where: { id },
+      include: {
+        packages: { select: { id: true, title: true } },
+        note_purchases: {
+          where: { user_id: userId, status: NotePurchaseStatus.paid },
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!note || !note.is_published) {
+      throw new NotFoundException('Note not found');
+    }
+
+    const isFree = note.tier === NoteTier.free;
+    const isDirectlyPurchased = note.note_purchases.length > 0;
+
+    // Check if the user has an active access to any of the packages linked to this note
+    let hasPackageAccess = false;
+    if (note.packages.length > 0) {
+      const packageIds = note.packages.map((p) => p.id);
+      const activeAccess = await this.prisma.userPackageAccess.findFirst({
+        where: {
+          user_id: userId,
+          package_id: { in: packageIds },
+          status: 'active',
+          OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
+        },
+      });
+      hasPackageAccess = !!activeAccess;
+    }
+
+    const is_locked = !isFree && !isDirectlyPurchased && !hasPackageAccess;
+
+    if (is_locked) {
+      throw new ForbiddenException('This note is locked. You must purchase it or have an active package subscription to view its full details.');
+    }
+
+    return {
+      id: note.id,
+      title: note.title,
+      description: note.description,
+      subject: note.subject,
+      tier: note.tier,
+      price: note.price.toNumber(),
+      discount_price: note.discount_price.toNumber(),
+      file_path: note.file_path,
+      file_mime: note.file_mime,
+      preview_file_path: note.preview_file_path,
+      preview_file_mime: note.preview_file_mime,
+      packages: note.packages,
+      download_count: note.download_count,
+      is_locked: false,
+      created_at: note.created_at,
     };
   }
 

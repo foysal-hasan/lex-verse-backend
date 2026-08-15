@@ -21,6 +21,13 @@ export class NoteUserController {
     return this.noteService.findAllForUser(userId, query);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get single note content with purchase check (User)' })
+  findOneForUser(@Param('id') id: string, @Req() req: Request) {
+    const userId = req.user.userId;
+    return this.noteService.findOneForUser(id, userId);
+  }
+
   @Get(':id/download')
   @ApiOperation({ summary: 'Secure file download endpoint for notes (User)' })
   downloadNote(@Param('id') id: string, @Req() req: Request) {
