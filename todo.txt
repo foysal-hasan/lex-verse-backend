@@ -2,3 +2,4 @@
 2. Need to check for each resource On resource create and update if there is an image then modify/delete stored image =>  table FileUpload
 
 3. Need to check every controller add url for file path
+4. Need to test Routine apis check all the filters as well

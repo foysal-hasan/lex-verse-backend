@@ -15,22 +15,22 @@ export enum SortOrder {
 }
 
 export class FilterPackageDto {
-  @ApiPropertyOptional({ enum: PkgProgram, example: PkgProgram.bjs })
+  @ApiPropertyOptional({ enum: PkgProgram, description: 'Program type of the package' })
   @IsEnum(PkgProgram)
   @IsOptional()
   program?: PkgProgram;
 
-  @ApiPropertyOptional({ enum: PkgTrack, example: PkgTrack.preliminary })
+  @ApiPropertyOptional({ enum: PkgTrack, description: 'Track type of the package' })
   @IsEnum(PkgTrack)
   @IsOptional()
   track?: PkgTrack;
 
-  @ApiPropertyOptional({ enum: PkgKind, example: PkgKind.batch })
+  @ApiPropertyOptional({ enum: PkgKind, description: 'Kind of the package' })
   @IsEnum(PkgKind)
   @IsOptional()
   kind?: PkgKind;
 
-  @ApiPropertyOptional({ example: 'বিজেএস' })
+  @ApiPropertyOptional({ description: 'Search by package name' })
   @IsString()
   @IsOptional()
   search?: string;
@@ -41,12 +41,12 @@ export class FilterPackageDto {
   @IsOptional()
   is_active?: boolean;
 
-  @ApiPropertyOptional({ enum: PackageSortBy, example: PackageSortBy.sortOrder, default: PackageSortBy.sortOrder })
+  @ApiPropertyOptional({ enum: PackageSortBy, description: 'Sort by field', default: PackageSortBy.sortOrder })
   @IsEnum(PackageSortBy)
   @IsOptional()
   sortBy?: PackageSortBy = PackageSortBy.sortOrder;
 
-  @ApiPropertyOptional({ enum: SortOrder, example: SortOrder.asc, default: SortOrder.asc })
+  @ApiPropertyOptional({ enum: SortOrder, description: 'Sort order', default: SortOrder.asc })
   @IsEnum(SortOrder)
   @IsOptional()
   sortOrder?: SortOrder = SortOrder.asc;

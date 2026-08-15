@@ -241,6 +241,7 @@ model Package {
   suggestions             Suggestions[]
   notes                   Note[]
   syllabuses              Syllabus[]
+  routines                Routine[]
 
   @@map("packages")
 }
@@ -380,23 +381,61 @@ model UserUnlock {
 
 // =============== Syllabus start ===============
 model Syllabus {
-  id String    @id @default(uuid())
-  created_at   DateTime @default(now()) @db.Timestamptz
-  updated_at   DateTime @updatedAt @db.Timestamptz
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
 
-  title String
-  track PkgTrack?
-  content String? @db.Text
-  file_path String?
+  title          String
+  track          PkgTrack?
+  content        String?   @db.Text
+  file_path      String?
   file_mime_type String?
-  is_published Boolean @default(false)
+  is_published   Boolean   @default(false)
 
   // relations
   packages Package[]
 
   @@map("syllabuses")
 }
+
 // =============== Syllabus end ===============
+
+// =============== Routine start ===============
+enum RoutineVisibilityScope {
+  public
+  premium
+  authenticated
+}
+
+model Routine {
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  program_type     PkgProgram
+  track            PkgTrack?
+  routine_type     String
+  routine_number   String?
+  exam_date        DateTime?  @db.Timestamptz
+  academic_year    Int?
+  session_label    String?
+  title            String
+  description      String?
+  file_mime_type   String?
+  file_path        String?
+  is_published     Boolean    @default(false)
+  is_pinned        Boolean    @default(false)
+  visibility_scope RoutineVisibilityScope
+
+  created_by       String?
+
+  package_id       String?
+  package          Package?  @relation(fields: [package_id], references: [id], onDelete: SetNull)
+
+  @@map("routines")
+}
+
+// =============== Routine end ===============
 
 // RoadmapStage Model (Stages/Levels within a Roadmap)
 model RoadmapStage {
@@ -2366,9 +2405,9 @@ model NotePurchase {
   payment_method String
   status         NotePurchaseStatus @default(pending)
 
-  reviewed_note  String?
-  reviewed_by String?
-  reviewed_at DateTime? @db.Timestamptz
+  reviewed_note String?
+  reviewed_by   String?
+  reviewed_at   DateTime? @db.Timestamptz
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
   note Note @relation(fields: [note_id], references: [id], onDelete: Cascade)
