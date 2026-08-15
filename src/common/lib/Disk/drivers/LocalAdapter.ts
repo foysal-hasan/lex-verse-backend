@@ -3,6 +3,7 @@ import * as fsSync from 'fs';
 import * as path from 'path';
 import { DiskOption } from '../Option';
 import { IStorage } from './iStorage';
+import { Readable } from 'stream';
 
 /**
  * LocalAdapter for local file storage
@@ -58,6 +59,20 @@ export class LocalAdapter implements IStorage {
       console.log(err);
     }
   }
+
+
+  /**
+   * get data stream
+   * @param key
+   */
+ async getStream(key: string): Promise<Readable> {
+  try {
+    const filePath = path.join(this._config.connection.rootUrl!, key);
+    return fsSync.createReadStream(filePath);
+  } catch (err) {
+    throw new Error(`Failed to create read stream for local file ${key}: ${err}`);
+  }
+}
 
   /**
    * put data

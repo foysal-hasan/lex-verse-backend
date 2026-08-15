@@ -1,6 +1,7 @@
 import { Storage, Bucket } from '@google-cloud/storage';
 import { IStorage } from './iStorage';
 import { DiskOption } from '../Option';
+import { Readable } from 'stream';
 
 export class GCSAdapter implements IStorage {
   private _config: DiskOption;
@@ -58,6 +59,19 @@ export class GCSAdapter implements IStorage {
       return file.createReadStream();
     } catch (error) {
       throw new Error(`Failed to get object ${key}: ${error}`);
+    }
+  }
+
+  // Inside GcsAdapter class:
+  async getStream(key: string): Promise<Readable> {
+    try {
+      const bucket = this.storage.bucket(this.bucket.name);
+      const file = bucket.file(key);
+
+      // GCS createReadStream() natively returns a Node.js Readable Stream
+      return file.createReadStream();
+    } catch (error) {
+      throw new Error(`Failed to get GCS stream for object ${key}: ${error}`);
     }
   }
 

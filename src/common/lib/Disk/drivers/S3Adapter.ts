@@ -78,6 +78,25 @@ export class S3Adapter implements IStorage {
     }
   }
 
+
+  /**
+   * get data stream
+   * @param key
+   */
+  async getStream(key: string): Promise<Readable> {
+    try {
+      const response = await this.s3.send(
+        new GetObjectCommand({
+          Bucket: this._config.connection.awsBucket,
+          Key: key,
+        }),
+      );
+
+      return response.Body as Readable;
+    } catch (error) {
+      throw new Error(`Failed to get S3 stream for object ${key}: ${error}`);
+    }
+  }
   /**
    * Upload file
    */
@@ -85,7 +104,7 @@ export class S3Adapter implements IStorage {
     key: string,
     value: Buffer | Uint8Array | string,
     contentType?: string,
-    isPublic: boolean = true, 
+    isPublic: boolean = true,
   ): Promise<string> {
     try {
       await this.s3.send(

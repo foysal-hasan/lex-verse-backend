@@ -15,6 +15,12 @@ export interface IStorage {
   get(key: string): Promise<any>;
 
   /**
+   * get data stream
+   * @param key
+   */
+  getStream(key: string): Promise<any>;
+
+  /**
    * get file url
    * @param key
    */

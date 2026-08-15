@@ -1,3 +1,4 @@
+import { Readable } from 'stream';
 import { IStorage } from './drivers/iStorage';
 export class StorageClass {
   protected adapter: IStorage;
@@ -31,6 +32,15 @@ export class StorageClass {
    */
   public async get(key: string) {
     return await this.adapter.get(key);
+  }
+
+  /**
+   * get data stream
+   * @param key
+   * @returns
+   */
+  public async getStream(key: string): Promise<Readable> {
+    return await this.adapter.getStream(key);
   }
 
   /**

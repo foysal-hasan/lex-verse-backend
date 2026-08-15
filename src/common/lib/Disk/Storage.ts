@@ -3,6 +3,7 @@ import { LocalAdapter } from './drivers/LocalAdapter';
 import { DiskOption, DiskType } from './Option';
 import { S3Adapter } from './drivers/S3Adapter';
 import { IStorage } from './drivers/iStorage';
+import { Readable } from 'stream';
 
 /**
  * Storage for handling storage (local storage, aws s3 storage)
@@ -70,6 +71,16 @@ export class Storage {
   public static async get(key: string): Promise<any> {
     const disk = this.storageDisk();
     return await disk.get(key);
+  }
+
+  /**
+   * get data stream
+   * @param key
+   * @returns
+   */
+  public static async getStream(key: string): Promise<Readable> {
+    const disk = this.storageDisk();
+    return await disk.getStream(key);
   }
 
   /**
