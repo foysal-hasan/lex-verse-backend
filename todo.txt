@@ -1,2 +1,4 @@
 1. May need to run cron jobs for check expired user package access and update the status to expired
 2. Need to check for each resource On resource create and update if there is an image then modify/delete stored image =>  table FileUpload
+
+3. Need to check every controller add url for file path

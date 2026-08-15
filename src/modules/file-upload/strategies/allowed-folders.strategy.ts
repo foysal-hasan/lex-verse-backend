@@ -9,6 +9,7 @@ export enum AllowedUploadFolders {
   BARE_ACTS = 'bare-acts',
   ARTICLES = 'articles',
   NOTES = 'notes',
+  SYLLABUS = 'syllabus',
 }
 
 @Injectable()

@@ -19,11 +19,11 @@ export class FileUploadService {
     this.folderStrategy.validate(folder);
 
     const generatedFilename = `${Date.now()}-${Math.random().toString(32).slice(2)}${extname(file.originalname)}`;
-    const key = `${folder}/${generatedFilename}`;
+    const key = `/${folder}/${generatedFilename}`;
 
     await Storage.put(key, file.buffer);
 
-    const fileUrl = Storage.url(`/${key}`);
+    const fileUrl = Storage.url(key);
 
     // 3. Register file entry in DB as PENDING
     await this.prisma.fileUpload.create({
