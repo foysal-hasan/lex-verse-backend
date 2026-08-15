@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateNotePurchaseDto } from './dto/create-note-purchase.dto';
 import { QueryNotePurchaseDto } from './dto/query-note-purchase.dto';
@@ -7,13 +7,23 @@ import { UpdateNotePurchaseStatusDto } from './dto/update-note-purchase.dto';
 
 @Injectable()
 export class NotePurchaseService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // USER: Request Note Purchase
   async create(userId: string, dto: CreateNotePurchaseDto) {
-    const note = await this.prisma.note.findUnique({ where: { id: dto.note_id } });
+    const note = await this.prisma.note.findUnique({ 
+      where: { id: dto.note_id },
+      include: {
+        note_purchases: true,
+      }
+    });
     if (!note) throw new NotFoundException('Note not found');
     if (note.tier === NoteTier.free) throw new BadRequestException('Cannot purchase free notes.');
+
+    if (note.note_purchases.some(p => p.status === NotePurchaseStatus.pending)) throw new ConflictException('Note already has pending purchase requests.');
+
+    if (note.note_purchases.some(p => p.status === NotePurchaseStatus.paid)) throw new ConflictException('Note already has paid purchase requests.');
+
 
     const priceToPay = note.discount_price.gt(0) ? note.discount_price : note.price;
 
@@ -27,10 +37,22 @@ export class NotePurchaseService {
         payment_method: dto.payment_method,
         status: NotePurchaseStatus.pending,
       },
+      select: {
+        id: true,
+        user_id: true,
+        note_id: true,
+        amount: true,
+        sender_phone: true,
+        transaction_id: true,
+        payment_method: true,
+        status: true,
+        created_at: true,
+        updated_at: true
+      }
     });
   }
 
-// USER: List own requests with pagination, filter, and search
+  // USER: List own requests with pagination, filter, and search
   async findAllForUser(userId: string, query: QueryNotePurchaseDto) {
     const { page = 1, limit = 10, status, search } = query;
     const skip = (page - 1) * limit;
@@ -44,21 +66,33 @@ export class NotePurchaseService {
       ];
     }
 
-    const [data, total] = await Promise.all([
+    const [items, total] = await Promise.all([
       this.prisma.notePurchase.findMany({
         where,
         skip,
         take: limit,
         orderBy: { created_at: 'desc' },
-        include: {
+        select: {
+          id: true,
+          created_at: true,
+          updated_at: true,
+          user_id: true,
+          note_id: true,
+          amount: true,
+          sender_phone: true,
+          transaction_id: true,
+          payment_method: true,
+          status: true,
+          reviewed_note: true,
+          reviewed_at: true,
           note: { select: { id: true, title: true, tier: true, price: true, discount_price: true } },
-        },
+        }
       }),
       this.prisma.notePurchase.count({ where }),
     ]);
 
     return {
-      data,
+      items,
       meta: { total, page, limit, total_pages: Math.ceil(total / limit) },
     };
   }
@@ -79,7 +113,7 @@ export class NotePurchaseService {
       ];
     }
 
-    const [data, total] = await Promise.all([
+    const [items, total] = await Promise.all([
       this.prisma.notePurchase.findMany({
         where,
         skip,
@@ -94,7 +128,7 @@ export class NotePurchaseService {
     ]);
 
     return {
-      data,
+      items,
       meta: { total, page, limit, total_pages: Math.ceil(total / limit) },
     };
   }
@@ -108,7 +142,7 @@ export class NotePurchaseService {
       where: { id },
       data: {
         status: dto.status,
-        admin_note: dto.admin_note,
+        reviewed_note: dto.reviewed_note,
         reviewed_by: adminId,
         reviewed_at: new Date(),
       },

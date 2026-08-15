@@ -12,5 +12,5 @@ export class UpdateNotePurchaseStatusDto {
   @ApiPropertyOptional({ example: 'Verified transaction manually via merchant account.' })
   @IsString()
   @IsOptional()
-  admin_note?: string;
+  reviewed_note?: string;
 }

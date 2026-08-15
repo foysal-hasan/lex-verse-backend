@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Patch, Body, Param, Query, UseGuards, Req, UseInterceptors } from '@nestjs/common';
 import { Request } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { NotePurchaseService } from '../note-purchase.service';
@@ -8,11 +8,13 @@ import { RolesGuard } from 'src/common/guard/role/roles.guard';
 import { Roles } from 'src/common/guard/role/roles.decorator';
 import { UserRole } from 'src/generated/prisma/enums';
 import { UpdateNotePurchaseStatusDto } from '../dto/update-note-purchase.dto';
+import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 
 @ApiTags('Admin - Note Purchases')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.admin)
+@UseInterceptors(TransformResponseInterceptor)
 @Controller('admin/note-purchases')
 export class NotePurchaseAdminController {
   constructor(private readonly notePurchaseService: NotePurchaseService) {}

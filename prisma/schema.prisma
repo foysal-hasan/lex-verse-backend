@@ -2345,7 +2345,7 @@ model NotePurchase {
   payment_method String
   status         NotePurchaseStatus @default(pending)
 
-  admin_note  String?
+  reviewed_note  String?
   reviewed_by String?
   reviewed_at DateTime? @db.Timestamptz
 

@@ -7,7 +7,7 @@ import { NoteTier, NotePurchaseStatus } from '@prisma/client';
 
 @Injectable()
 export class NoteService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // ================= ADMIN METHODS =================
   async create(dto: CreateNoteDto) {
@@ -111,6 +111,7 @@ export class NoteService {
   }
 
   // ================= USER METHODS =================
+  // ================= USER METHODS =================
   async findAllForUser(userId: string, query: QueryNoteDto) {
     const { page = 1, limit = 10, search, subject, tier, package_id } = query;
     const skip = (page - 1) * limit;
@@ -143,19 +144,38 @@ export class NoteService {
       this.prisma.note.count({ where }),
     ]);
 
-    // Check package accesses for the user in bulk if package filter is provided
-    let hasPackageAccess = false;
-    if (package_id) {
-      const access = await this.prisma.userPackageAccess.findFirst({
-        where: { user_id: userId, package_id, status: 'active' },
-      });
-      hasPackageAccess = !!access;
-    }
+    // 1. Gather all unique package IDs across the retrieved notes
+    const packageIds = Array.from(
+      new Set(notes.flatMap((note) => note.packages.map((pkg) => pkg.id))),
+    );
 
+    // 2. Fetch all active user package accesses for these packages in a single query
+    const activeAccesses =
+      packageIds.length > 0
+        ? await this.prisma.userPackageAccess.findMany({
+          where: {
+            user_id: userId,
+            package_id: { in: packageIds },
+            status: 'active',
+            OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
+          },
+          select: { package_id: true },
+        })
+        : [];
+
+    // Create a fast lookup set of active package IDs the user has access to
+    const activePackageIdSet = new Set(activeAccesses.map((acc) => acc.package_id));
+
+    // 3. Map notes to items with exact locked status check
     const items = notes.map((note) => {
       const isFree = note.tier === NoteTier.free;
       const isDirectlyPurchased = note.note_purchases.length > 0;
-      
+
+      // Check if the user has active access to ANY package linked to this note
+      const hasPackageAccess = note.packages.some((pkg) =>
+        activePackageIdSet.has(pkg.id),
+      );
+
       // Locked if it's premium, not free, not directly purchased, and user doesn't have package clearance
       const is_locked = !isFree && !isDirectlyPurchased && !hasPackageAccess;
 
@@ -252,13 +272,13 @@ export class NoteService {
 
     if (note.tier === NoteTier.premium) {
       const packageIds = note.packages.map((p) => p.id);
-      
+
       // Check package access or direct note purchase
       const [hasPackageAccess, directPurchase] = await Promise.all([
         packageIds.length > 0
           ? this.prisma.userPackageAccess.findFirst({
-              where: { user_id: userId, package_id: { in: packageIds }, status: 'active' },
-            })
+            where: { user_id: userId, package_id: { in: packageIds }, status: 'active' },
+          })
           : null,
         this.prisma.notePurchase.findFirst({
           where: { user_id: userId, note_id: id, status: NotePurchaseStatus.paid },
@@ -274,6 +294,7 @@ export class NoteService {
     await this.prisma.note.update({
       where: { id },
       data: { download_count: { increment: 1 } },
+      select: { title: true, file_path: true, file_mime: true },
     });
 
     return {
