@@ -19,6 +19,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import appConfig from 'src/config/app.config';
 import { Prisma } from 'src/generated/prisma/client';
+import { Storage } from 'src/common/lib/Disk/Storage';
+import { Readable } from 'stream';
 
 @Injectable()
 export class QuestionBankService {
@@ -35,7 +37,8 @@ export class QuestionBankService {
     if (dto.pdf_path) fileUrls.push(dto.pdf_path);
     if (dto.pdf_url) fileUrls.push(dto.pdf_url);
 
-    if (fileUrls.length > 0) {await this.queueDispatcher.enqueueFileAttachment(
+    if (fileUrls.length > 0) {
+      await this.queueDispatcher.enqueueFileAttachment(
         FILE_UPLOAD_JOBS.MARK_ATTACHED,
         { urls: fileUrls },
       );
@@ -60,7 +63,7 @@ export class QuestionBankService {
     if (qb.tier === Tier.free) {
       return { qb, hasAccess: true, reason: 'FREE_TIER' };
     }
-    
+
     if (!userId) {
       return { qb, hasAccess: false, reason: 'UNAUTHENTICATED' };
     }
@@ -133,7 +136,7 @@ export class QuestionBankService {
     const skip = (page - 1) * limit;
 
     // Dynamic Filter Object
-    const where: Prisma.QuestionBankWhereInput= { deleted_at: null };
+    const where: Prisma.QuestionBankWhereInput = { deleted_at: null };
 
     // Published Status Handling
     if (!isAdmin) {
@@ -330,9 +333,9 @@ export class QuestionBankService {
   }
 
   // -------------------------------------------------------------
-  // DOWNLOAD FILE
+  // DOWNLOAD FILE Stream
   // -------------------------------------------------------------
-  async getDownloadFile(id: string, userId: string) {
+  async getDownloadFileStream(id: string, userId: string) {
     const { qb, hasAccess } = await this.checkAccessPermission(id, userId);
 
     if (!hasAccess) {
@@ -350,7 +353,6 @@ export class QuestionBankService {
       throw new BadRequestException('No PDF document file configured for this entry');
     }
 
-
     await this.prisma.questionBank.update({
       where: { id },
       data: {
@@ -363,8 +365,24 @@ export class QuestionBankService {
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '_')
       .replace(/_+/g, '_');
+
+    let stream: Readable;
+
+    if (qb.pdf_path) {
+      // 1. Internal Storage (Local, S3, GCS)
+      stream = await Storage.getStream(qb.pdf_path);
+    } else if (qb.pdf_url) {
+      // 2. External URL (Stream via backend proxy)
+      const externalResponse = await fetch(qb.pdf_url);
+      if (!externalResponse.ok) {
+        throw new BadRequestException('Failed to fetch document from external source');
+      }
+      // Convert native Web Stream to Node.js Readable Stream
+      stream = Readable.fromWeb(externalResponse.body as any);
+    }
+
     return {
-      file_path: qb.pdf_path || qb.pdf_url,
+      stream,
       filename: `${cleanFilename}.pdf`,
       type: 'application/pdf',
     };

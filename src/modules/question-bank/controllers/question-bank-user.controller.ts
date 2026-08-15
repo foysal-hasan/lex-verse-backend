@@ -23,7 +23,7 @@ import { Storage } from 'src/common/lib/Disk/Storage';
 @UseInterceptors(TransformResponseInterceptor)
 @Controller('question-banks')
 export class QuestionBankUserController {
-  constructor(private readonly questionBankService: QuestionBankService) {}
+  constructor(private readonly questionBankService: QuestionBankService) { }
 
   @Get()
   @ApiOperation({ summary: 'List published Question Banks with search, filters, & unlock status' })
@@ -61,13 +61,12 @@ export class QuestionBankUserController {
   @ApiOperation({ summary: 'Download Question Bank PDF file' })
   async downloadPdf(@Param('id') id: string, @Req() req: Request): Promise<StreamableFile> {
     const userId = req.user.userId;
-    const { file_path, filename, type } = await this.questionBankService.getDownloadFile(
+    const { stream, filename, type } = await this.questionBankService.getDownloadFileStream(
       id,
       userId,
     );
-    const fileStream = await Storage.getStream(file_path);
 
-    return new StreamableFile(fileStream, {
+    return new StreamableFile(stream, {
       disposition: `attachment; filename="${filename}"`,
       type,
     });
