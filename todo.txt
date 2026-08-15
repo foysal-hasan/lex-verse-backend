@@ -1,7 +1,1 @@
-1. Test note and purchase note endpoints
-2. on delete note => delete files as well
-done => 3. Add Package and Remove package
-done => 4. Need test attach and detach packages endpoints
-done => 5. Download file endpoint is need adjustment
-
-6. May need to run cron jobs for check expired user package access and update the status to expired
+1. May need to run cron jobs for check expired user package access and update the status to expired

@@ -4,6 +4,7 @@ import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
 import { QueryNoteDto } from './dto/query-note.dto';
 import { NoteTier, NotePurchaseStatus } from '@prisma/client';
+import { Storage } from 'src/common/lib/Disk/Storage';
 
 @Injectable()
 export class NoteService {
@@ -78,7 +79,14 @@ export class NoteService {
 
   async remove(id: string) {
     await this.findOneAdmin(id);
-    return this.prisma.note.delete({ where: { id } });
+
+    const note = await this.prisma.note.delete({ where: { id } });
+
+    await Storage.delete(note.file_path);
+
+    return {
+      id: note.id,
+    }
   }
 
 
