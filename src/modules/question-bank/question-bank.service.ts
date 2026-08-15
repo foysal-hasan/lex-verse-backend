@@ -330,9 +330,9 @@ export class QuestionBankService {
   }
 
   // -------------------------------------------------------------
-  // DOWNLOAD STREAM
+  // DOWNLOAD FILE
   // -------------------------------------------------------------
-  async getDownloadStream(id: string, userId: string) {
+  async getDownloadFile(id: string, userId: string) {
     const { qb, hasAccess } = await this.checkAccessPermission(id, userId);
 
     if (!hasAccess) {
@@ -350,11 +350,6 @@ export class QuestionBankService {
       throw new BadRequestException('No PDF document file configured for this entry');
     }
 
-    const absolutePath = path.join(appConfig().storageUrl.rootUrl, filePath);
-    console.log(absolutePath);
-    if (!fs.existsSync(absolutePath)) {
-      throw new NotFoundException('Physical document file missing on server');
-    }
 
     await this.prisma.questionBank.update({
       where: { id },
@@ -368,9 +363,8 @@ export class QuestionBankService {
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '_')
       .replace(/_+/g, '_');
-
     return {
-      stream: fs.createReadStream(absolutePath),
+      file_path: qb.pdf_path || qb.pdf_url,
       filename: `${cleanFilename}.pdf`,
       type: 'application/pdf',
     };

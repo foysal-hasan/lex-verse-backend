@@ -41,6 +41,7 @@ export class NoteUserController {
 
         return new StreamableFile(fileStream, {
             disposition: `attachment; filename="${encodeURIComponent(response.title)}${ext}`,
+            type: response.file_mime,
         });
     }
 }

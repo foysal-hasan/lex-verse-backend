@@ -12,6 +12,7 @@ import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { CaseReferenceService } from '../case-reference.service';
 import { QueryCaseReferenceDto } from '../dto/query-case-reference.dto';
 import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
+import { Storage } from 'src/common/lib/Disk/Storage';
 
 @ApiTags('User - Case References')
 @ApiBearerAuth()
@@ -19,7 +20,7 @@ import { TransformResponseInterceptor } from 'src/common/interceptors/response.i
 @UseInterceptors(TransformResponseInterceptor)
 @Controller('case-references')
 export class CaseReferenceUserController {
-  constructor(private readonly caseReferenceService: CaseReferenceService) {}
+  constructor(private readonly caseReferenceService: CaseReferenceService) { }
 
   @Get()
   @ApiOperation({ summary: 'List published Case References with search, filters, & pagination' })
@@ -50,12 +51,14 @@ export class CaseReferenceUserController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Download Case Reference PDF document' })
   async downloadPdf(@Param('idOrSlug') idOrSlug: string): Promise<StreamableFile> {
-    const { stream, filename, type } =
-      await this.caseReferenceService.getDownloadStream(idOrSlug);
+    const { file_path, filename, type } =
+      await this.caseReferenceService.getDownloadFile(idOrSlug);
 
-    return new StreamableFile(stream, {
-      disposition: `attachment; filename="${filename}"`,
-      type,
-    });
+      const fileStream = await Storage.getStream(file_path);
+
+      return new StreamableFile(fileStream, {
+        disposition: `attachment; filename="${filename}"`,
+        type,
+      });
   }
 }

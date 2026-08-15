@@ -15,6 +15,7 @@ import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from 'src/modules/auth/guards/optional-jwt-auth.guard';
 import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 import { Request } from 'express';
+import { Storage } from 'src/common/lib/Disk/Storage';
 
 @ApiTags('User - Question Banks')
 @ApiBearerAuth()
@@ -60,12 +61,13 @@ export class QuestionBankUserController {
   @ApiOperation({ summary: 'Download Question Bank PDF file' })
   async downloadPdf(@Param('id') id: string, @Req() req: Request): Promise<StreamableFile> {
     const userId = req.user.userId;
-    const { stream, filename, type } = await this.questionBankService.getDownloadStream(
+    const { file_path, filename, type } = await this.questionBankService.getDownloadFile(
       id,
       userId,
     );
+    const fileStream = await Storage.getStream(file_path);
 
-    return new StreamableFile(stream, {
+    return new StreamableFile(fileStream, {
       disposition: `attachment; filename="${filename}"`,
       type,
     });

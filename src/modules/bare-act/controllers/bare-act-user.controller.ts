@@ -13,6 +13,7 @@ import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { BareActService } from '../bare-act.service';
 import { QueryBareActDto } from '../dto/query-bare-act.dto';
 import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
+import { Storage } from 'src/common/lib/Disk/Storage';
 
 @ApiTags('User - Bare Acts')
 @ApiBearerAuth()
@@ -45,8 +46,10 @@ export class BareActUserController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Download Bare Act PDF document' })
   async downloadPdf(@Param('id') id: string): Promise<StreamableFile> {
-    const { stream, filename,type } = await this.bareActService.getDownloadStream(id);
-    return new StreamableFile(stream, {
+    const { file_path, filename, type } = await this.bareActService.getDownloadFile(id);
+    const fileStream = await Storage.getStream(file_path);
+
+    return new StreamableFile(fileStream, {
       disposition: `attachment; filename="${filename}"`,
       type: type,
     });

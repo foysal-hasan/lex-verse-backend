@@ -198,9 +198,9 @@ export class BareActService {
   }
 
   // -------------------------------------------------------------
-  // USER: Download PDF File Stream
+  // USER: Download PDF File
   // -------------------------------------------------------------
-  async getDownloadStream(id: string) {
+  async getDownloadFile(id: string) {
     const bareAct = await this.findOne(id, false);
 
     if (!bareAct.allow_download) {
@@ -211,11 +211,6 @@ export class BareActService {
       throw new BadRequestException('No PDF document associated with this Bare Act');
     }
 
-    const absolutePath = path.join(appConfig().storageUrl.rootUrl, bareAct.pdf_path);
-
-    if (!fs.existsSync(absolutePath)) {
-      throw new NotFoundException('Physical PDF document file not found on server');
-    }
 
     let contentType = 'application/pdf';
     if (path.extname(bareAct.pdf_path) === '.docx') {
@@ -233,7 +228,7 @@ export class BareActService {
     });
 
     return {
-      stream: fs.createReadStream(absolutePath),
+      file_path: bareAct.pdf_path,
       filename: `${bareAct.title.replace(/[^a-zA-Z0-9]/g, '_')}${path.extname(bareAct.pdf_path)}`,
       type: contentType,
     };

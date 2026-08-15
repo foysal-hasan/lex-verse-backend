@@ -241,20 +241,14 @@ export class CaseReferenceService {
   }
 
   // -------------------------------------------------------------
-  // USER: PDF Stream Download
+  // USER: PDF Download
   // -------------------------------------------------------------
-  async getDownloadStream(identifier: string) {
+  async getDownloadFile(identifier: string) {
     const caseRef = await this.findOne(identifier, false);
 
     const targetPath = caseRef.pdf_path || caseRef.pdf_url;
     if (!targetPath) {
       throw new BadRequestException('No PDF available for this Case Reference');
-    }
-
-    const absolutePath = path.join(`${appConfig().storageUrl.rootUrl}/${targetPath}`);
-
-    if (!fs.existsSync(absolutePath)) {
-      throw new NotFoundException('Physical PDF document file not found on server');
     }
 
     // Update download count
@@ -268,7 +262,7 @@ export class CaseReferenceService {
     });
 
     return {
-      stream: fs.createReadStream(absolutePath),
+      file_path: targetPath,
       filename: `${(caseRef.slug || 'case-reference')}.pdf`,
       type: 'application/pdf',
     };
