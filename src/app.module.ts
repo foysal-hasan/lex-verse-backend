@@ -25,6 +25,7 @@ import { SuggestionModule } from './modules/suggestion/suggestion.module';
 import { ArticleModule } from './modules/article/article.module';
 import { NoteModule } from './modules/note/note.module';
 import { NotePurchaseModule } from './modules/note-purchase/note-purchase.module';
+import { SyllabusModule } from './modules/syllabus/syllabus.module';
 
 
 @Module({
@@ -68,6 +69,7 @@ import { NotePurchaseModule } from './modules/note-purchase/note-purchase.module
     ArticleModule,
     NoteModule,
     NotePurchaseModule,
+    SyllabusModule,
   ],
   controllers: [AppController],
   providers: [AppService],

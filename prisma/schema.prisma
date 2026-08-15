@@ -240,6 +240,7 @@ model Package {
   book_references         BookReference[]
   suggestions             Suggestions[]
   notes                   Note[]
+  syllabuses              Syllabus[]
 
   @@map("packages")
 }
@@ -376,6 +377,26 @@ model UserUnlock {
 }
 
 // =============== Package end
+
+// =============== Syllabus start ===============
+model Syllabus {
+  id String    @id @default(uuid())
+  created_at   DateTime @default(now()) @db.Timestamptz
+  updated_at   DateTime @updatedAt @db.Timestamptz
+
+  title String
+  track PkgTrack?
+  content String? @db.Text
+  file_path String?
+  file_mime_type String?
+  is_published Boolean @default(false)
+
+  // relations
+  packages Package[]
+
+  @@map("syllabuses")
+}
+// =============== Syllabus end ===============
 
 // RoadmapStage Model (Stages/Levels within a Roadmap)
 model RoadmapStage {

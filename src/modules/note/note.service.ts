@@ -82,7 +82,9 @@ export class NoteService {
 
     const note = await this.prisma.note.delete({ where: { id } });
 
-    await Storage.delete(note.file_path);
+    if(note.file_path) {
+      await Storage.delete(note.file_path);
+    }
 
     return {
       id: note.id,

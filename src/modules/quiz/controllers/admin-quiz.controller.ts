@@ -37,7 +37,7 @@ export class AdminQuizController {
   @ApiOperation({ summary: 'Create a new quiz with optional questions & image support (Admin)' })
   @ApiResponse({ status: 201, description: 'Quiz successfully created.' })
   create(@Body() dto: CreateQuizWithQuestionsDto, @Req() req: Request) {
-    const userId = req.user?.userId;
+    const userId = req.user.userId;
     return this.quizService.create(dto, userId);
   }
 
