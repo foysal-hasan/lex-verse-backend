@@ -17,15 +17,15 @@ async function bootstrap() {
     logger: appConfig().app.environment === 'production' ? ['error', 'warn'] : ['log', 'error', 'warn', 'debug', 'verbose'],
   });
 
-app.getHttpAdapter().getInstance().set('trust proxy', true);
+  app.getHttpAdapter().getInstance().set('trust proxy', true);
 
-app.setGlobalPrefix('api', {
+  app.setGlobalPrefix('api', {
     exclude: ['/', '/health', '/stripe/onboarding/refresh', '/stripe/onboarding/return'],
   });
 
-   // Get origins from config service
+  // Get origins from config service
   const corsOrigins = appConfig().app.cross_origins?.split(',') || [];
-  
+
   app.enableCors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, curl, postman)
@@ -50,7 +50,7 @@ app.setGlobalPrefix('api', {
   app.use(helmet());
 
 
-    // static assets
+  // static assets
   app.useStaticAssets(path.join(process.cwd(), 'public'), {
     index: false,
     prefix: '/public',
@@ -64,13 +64,13 @@ app.setGlobalPrefix('api', {
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
-      // whitelist: true,
+      whitelist: true,
     }),
   );
 
   app.useGlobalFilters(new CustomExceptionFilter(), new PrismaExceptionFilter());
 
-    Storage.config({
+  Storage.config({
     driver: appConfig().fileSystems.driver,
     connection: {
       rootUrl: appConfig().storageUrl.rootUrl,
@@ -91,7 +91,7 @@ app.setGlobalPrefix('api', {
   });
 
 
-    // swagger
+  // swagger
   const options = new DocumentBuilder()
     .setTitle(`${appConfig().app.name} API`)
     .setDescription(`${appConfig().app.name} api docs`)
@@ -99,14 +99,14 @@ app.setGlobalPrefix('api', {
     .addTag(`${appConfig().app.name}`)
     .addBearerAuth()
     .build();
-  
+
   const document = SwaggerModule.createDocument(app, options, {
     ignoreGlobalPrefix: false,
   });
 
   SwaggerModule.setup('api/docs', app, document);
   // end swagger
-  
+
   await app.listen(appConfig().app.port ?? 4000);
 }
 bootstrap();

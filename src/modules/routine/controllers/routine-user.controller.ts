@@ -6,6 +6,7 @@ import { QueryRoutineUserDto } from '../dto/query-routine-user.dto';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 import { PkgProgram } from 'src/generated/prisma/enums';
+import { Storage } from 'src/common/lib/Disk/Storage';
 
 @ApiTags('User - Routines')
 @ApiBearerAuth()
@@ -13,32 +14,38 @@ import { PkgProgram } from 'src/generated/prisma/enums';
 @UseInterceptors(TransformResponseInterceptor)
 @Controller('routines')
 export class RoutineUserController {
-  constructor(private readonly routineService: RoutineService) {}
+    constructor(private readonly routineService: RoutineService) { }
 
-  @Get('stats')
-  @ApiOperation({ summary: 'Get total, done, remaining, and next exam date for a package (User)' })
-  @ApiQuery({ name: 'package_id', required: true, type: String })
-  @ApiQuery({ name: 'program_type', required: true, enum: PkgProgram })
-  getStats(
-    @Query('package_id') packageId: string,
-    @Query('program_type') programType: PkgProgram,
-    @Req() req: Request,
-  ) {
-    const userId = (req.user as any).userId;
-    return this.routineService.getRoutineStats(userId, packageId, programType);
-  }
+    @Get('stats')
+    @ApiOperation({ summary: 'Get total, done, remaining, and next exam date for a package (User)' })
+    @ApiQuery({ name: 'package_id', required: true, type: String })
+    @ApiQuery({ name: 'program_type', required: true, enum: PkgProgram })
+    getStats(
+        @Query('package_id') packageId: string,
+        @Query('program_type') programType: PkgProgram,
+    ) {
+        return this.routineService.getRoutineStats(packageId, programType);
+    }
 
-  @Get()
-  @ApiOperation({ summary: 'Find all routines for a package and program with all/remain/done filter (User)' })
-  findAllForUser(@Query() query: QueryRoutineUserDto, @Req() req: Request) {
-    const userId = (req.user as any).userId;
-    return this.routineService.findAllForUser(userId, query);
-  }
+    @Get()
+    @ApiOperation({ summary: 'Find all routines for a package and program with all/remain/done filter (User)' })
+    async findAllForUser(@Query() query: QueryRoutineUserDto) {
+        const data = await this.routineService.findAllForUser(query);
+        data?.items?.forEach(routine => {
+            if (routine.file_path) {
+                routine['file_url'] = Storage.url(routine.file_path);
+            }
+        });
+        return data;
+    }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Find single routine details with package access check (User)' })
-  findOneForUser(@Param('id') id: string, @Req() req: Request) {
-    const userId = (req.user as any).userId;
-    return this.routineService.findOneForUser(id, userId);
-  }
+    @Get(':id')
+    @ApiOperation({ summary: 'Find single routine details with package access check (User)' })
+    async findOneForUser(@Param('id') id: string) {
+        const routine = await this.routineService.findOneForUser(id);
+        if (routine.file_path) {
+            routine['file_url'] = Storage.url(routine.file_path);
+        }
+        return routine;
+    }
 }

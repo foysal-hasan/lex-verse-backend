@@ -404,11 +404,6 @@ model Syllabus {
 // =============== Syllabus end ===============
 
 // =============== Routine start ===============
-enum RoutineVisibilityScope {
-  public
-  premium
-  authenticated
-}
 
 model Routine {
   id         String   @id @default(uuid())
@@ -428,7 +423,7 @@ model Routine {
   file_path        String?
   is_published     Boolean                @default(false)
   is_pinned        Boolean                @default(false)
-  visibility_scope RoutineVisibilityScope
+
 
   created_by String?
 

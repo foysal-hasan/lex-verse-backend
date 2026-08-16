@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { PkgProgram, PkgTrack, RoutineVisibilityScope } from 'src/generated/prisma/enums';
+import { PkgProgram, PkgTrack } from 'src/generated/prisma/enums';
 import { Type } from 'class-transformer';
 
 export class CreateRoutineDto {
@@ -68,17 +68,7 @@ export class CreateRoutineDto {
   @ApiPropertyOptional({ default: false })
   @IsBoolean()
   @IsOptional()
-  is_archived?: boolean;
-
-  @ApiPropertyOptional({ default: false })
-  @IsBoolean()
-  @IsOptional()
   is_pinned?: boolean;
-
-  @ApiProperty({ enum: RoutineVisibilityScope, example: RoutineVisibilityScope.premium })
-  @IsEnum(RoutineVisibilityScope)
-  @IsNotEmpty()
-  visibility_scope: RoutineVisibilityScope;
 
   @ApiPropertyOptional({ description: 'Link to a package ID. Leave empty/null for program-wide routines.', example: 'pkg-uuid-1' })
   @IsString()

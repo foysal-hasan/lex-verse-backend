@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateRoutineDto } from './dto/create-routine.dto';
 import { UpdateRoutineDto } from './dto/update-routine.dto';
@@ -113,67 +113,57 @@ export class RoutineService {
   }
 
   // ================= USER METHODS =================
-  private async verifyPackageAccess(userId: string, packageId: string) {
-    const access = await this.prisma.userPackageAccess.findFirst({
-      where: {
-        user_id: userId,
-        package_id: packageId,
-        status: 'active',
-        OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
-      },
-    });
-
-    if (!access) {
-      throw new ForbiddenException('Access denied. You do not have an active subscription to this package.');
-    }
-  }
-
-  async getRoutineStats(userId: string, packageId: string, programType: PkgProgram) {
-    await this.verifyPackageAccess(userId, packageId);
-
+  async getRoutineStats(packageId: string, programType: PkgProgram) {
     const now = new Date();
-    const routines = await this.prisma.routine.findMany({
-      where: {
-        is_published: true,
-        program_type: programType,
-        OR: [
-          { package_id: packageId },
-          { package_id: null },
-        ],
-      },
-    });
+    const baseWhere = {
+      is_published: true,
+      program_type: programType,
+      OR: [
+        { package_id: packageId },
+        { package_id: null },
+      ],
+    };
 
-    const total = routines.length;
-    let done = 0;
-    let remaining = 0;
-    let nextExamDate: Date | null = null;
+    // Run all database queries concurrently in parallel
+    const [total, done, nextRoutine] = await Promise.all([
+      // 1. Get total count
+      this.prisma.routine.count({ where: baseWhere }),
 
-    for (const routine of routines) {
-      if (routine.exam_date) {
-        if (routine.exam_date < now) {
-          done++;
-        } else {
-          remaining++;
-          if (!nextExamDate || routine.exam_date < nextExamDate) {
-            nextExamDate = routine.exam_date;
-          }
-        }
-      } else {
-        remaining++;
-      }
-    }
+      // 2. Get count of routines whose exam date has passed (< now)
+      this.prisma.routine.count({
+        where: {
+          ...baseWhere,
+          exam_date: { lt: now },
+        },
+      }),
+
+      // 3. Find the closest upcoming routine (>= now)
+      this.prisma.routine.findFirst({
+        where: {
+          ...baseWhere,
+          exam_date: { gte: now },
+        },
+        orderBy: { exam_date: 'asc' },
+        select: { exam_date: true },
+      }),
+    ]);
+
+    // Remaining is total minus the ones that are done
+    const remaining = total - done;
 
     return {
       total_routine: total,
       done,
       remaining,
-      next_exam_date: nextExamDate,
+      next_exam_date: nextRoutine?.exam_date ?? null,
     };
   }
 
-  async findAllForUser(userId: string, query: QueryRoutineUserDto) {
+  async findAllForUser(query: QueryRoutineUserDto) {
     const { package_id, program_type, filter = 'all', page = 1, limit = 10, search } = query;
-    await this.verifyPackageAccess(userId, package_id);
+
+    if(!package_id) throw new BadRequestException('Package ID is required');
+    if(!program_type) throw new BadRequestException('Program type is required');
 
     const skip = (page - 1) * limit;
     const now = new Date();
@@ -183,7 +173,7 @@ export class RoutineService {
       program_type,
       OR: [
         { package_id },
-        { package_id: null },
+        { package_id: null, program_type: program_type, },
       ],
     };
 
@@ -217,7 +207,7 @@ export class RoutineService {
     };
   }
 
-  async findOneForUser(id: string, userId: string) {
+  async findOneForUser(id: string) {
     const routine = await this.prisma.routine.findUnique({
       where: { id },
       include: { package: { select: { id: true, title: true } } },
@@ -226,11 +216,6 @@ export class RoutineService {
     if (!routine || !routine.is_published) {
       throw new NotFoundException('Routine not found');
     }
-
-    if (routine.package_id) {
-      await this.verifyPackageAccess(userId, routine.package_id);
-    }
-
     return routine;
   }
 }
