@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Req, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { WrittenExamService } from '../../services/written-exam.service';
+import { WrittenExamService } from './written-exam.service';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 

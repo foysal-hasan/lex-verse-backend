@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PkgProgram } from 'src/generated/prisma/enums';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateWrittenExamDto } from '../dto/written-exam.dto';
+import { CreateWrittenExamDto } from './dto/written-exam.dto';
 
 @Injectable()
 export class WrittenExamService {

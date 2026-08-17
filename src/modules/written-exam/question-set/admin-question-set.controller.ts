@@ -1,12 +1,15 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UseGuards, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { QuestionSetService } from '../../services/question-set.service';
-import { CreateQuestionSetDto, UpdateQuestionSetDto } from '../../dto/question-set.dto';
+import { QuestionSetService } from './question-set.service';
 import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 import { UserRole } from 'src/generated/prisma/enums';
 import { Roles } from 'src/common/guard/role/roles.decorator';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guard/role/roles.guard';
+import { CreateQuestionSetDto } from './dto/create-question-set.dto';
+import { UpdateQuestionSetDto } from './dto/update-question-set.dto';
+import { AdminGetQuestionSetsQueryDto } from './dto/admin-get-question-sets-query.dto';
+import { AdminAttachDetachQuestionsDto } from './dto/admin-attach-detach-questions.dto';
 
 @ApiTags('Admin - Question Sets')
 @ApiBearerAuth()
@@ -15,7 +18,7 @@ import { RolesGuard } from 'src/common/guard/role/roles.guard';
 @UseInterceptors(TransformResponseInterceptor)
 @Controller('admin/question-sets')
 export class AdminQuestionSetController {
-  constructor(private readonly questionSetService: QuestionSetService) {}
+  constructor(private readonly questionSetService: QuestionSetService) { }
 
   @Post()
   @ApiOperation({ summary: 'Create a question set with nested questions' })
@@ -25,8 +28,8 @@ export class AdminQuestionSetController {
 
   @Get()
   @ApiOperation({ summary: 'Get all question sets' })
-  async findAll() {
-    return await this.questionSetService.findAll();
+  async findAll(@Query() query: AdminGetQuestionSetsQueryDto) {
+    return await this.questionSetService.findAll(query);
   }
 
   @Get(':id')
@@ -45,5 +48,23 @@ export class AdminQuestionSetController {
   @ApiOperation({ summary: 'Delete a question set' })
   async remove(@Param('id') id: string) {
     return await this.questionSetService.remove(id);
+  }
+
+  @Post(':id/attach')
+  @ApiOperation({ summary: 'Attach existing questions to a question set' })
+  async attachQuestions(
+    @Param('id') id: string,
+    @Body() dto: AdminAttachDetachQuestionsDto,
+  ) {
+    return await this.questionSetService.attachQuestions(id, dto.question_ids);
+  }
+
+  @Post(':id/detach')
+  @ApiOperation({ summary: 'Detach existing questions from a question set' })
+  async detachQuestions(
+    @Param('id') id: string,
+    @Body() dto: AdminAttachDetachQuestionsDto,
+  ) {
+    return await this.questionSetService.detachQuestions(id, dto.question_ids);
   }
 }
