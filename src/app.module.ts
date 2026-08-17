@@ -27,6 +27,7 @@ import { NoteModule } from './modules/note/note.module';
 import { NotePurchaseModule } from './modules/note-purchase/note-purchase.module';
 import { SyllabusModule } from './modules/syllabus/syllabus.module';
 import { RoutineModule } from './modules/routine/routine.module';
+import { WrittenExamModule } from './modules/written-exam/written-exam.module';
 
 
 @Module({
@@ -72,6 +73,7 @@ import { RoutineModule } from './modules/routine/routine.module';
     NotePurchaseModule,
     SyllabusModule,
     RoutineModule,
+    WrittenExamModule,
   ],
   controllers: [AppController],
   providers: [AppService],
