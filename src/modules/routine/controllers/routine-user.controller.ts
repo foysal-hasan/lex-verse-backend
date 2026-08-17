@@ -7,6 +7,7 @@ import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 import { PkgProgram } from 'src/generated/prisma/enums';
 import { Storage } from 'src/common/lib/Disk/Storage';
+import { PinnedQueryRoutineUserDto } from '../dto/pinned-query-routine-user.dto';
 
 @ApiTags('User - Routines')
 @ApiBearerAuth()
@@ -38,6 +39,18 @@ export class RoutineUserController {
         });
         return data;
     }
+
+    @Get('pinned')
+    @ApiOperation({ summary: 'Find all pinned routines for a package and program (User)' })
+    async findAllPinnedForUser(@Query() query: PinnedQueryRoutineUserDto) {
+        const data = await this.routineService.findPinnedRoutinesForUser(query);
+        data?.forEach(routine => {
+            if (routine.file_path) {
+                routine['file_url'] = Storage.url(routine.file_path);
+            }
+        });
+        return data;
+    }   
 
     @Get(':id')
     @ApiOperation({ summary: 'Find single routine details with package access check (User)' })

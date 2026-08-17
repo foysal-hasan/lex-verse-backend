@@ -7,6 +7,7 @@ import { QueryRoutineUserDto } from './dto/query-routine-user.dto';
 import { Storage } from 'src/common/lib/Disk/Storage';
 import { PkgProgram } from 'src/generated/prisma/enums';
 import { Prisma } from 'src/generated/prisma/client';
+import { PinnedQueryRoutineUserDto } from './dto/pinned-query-routine-user.dto';
 
 @Injectable()
 export class RoutineService {
@@ -162,8 +163,8 @@ export class RoutineService {
   async findAllForUser(query: QueryRoutineUserDto) {
     const { package_id, program_type, filter = 'all', page = 1, limit = 10, search } = query;
 
-    if(!package_id) throw new BadRequestException('Package ID is required');
-    if(!program_type) throw new BadRequestException('Program type is required');
+    if (!package_id) throw new BadRequestException('Package ID is required');
+    if (!program_type) throw new BadRequestException('Program type is required');
 
     const skip = (page - 1) * limit;
     const now = new Date();
@@ -196,7 +197,26 @@ export class RoutineService {
         skip,
         take: limit,
         orderBy: { exam_date: 'desc' },
-        include: { package: { select: { id: true, title: true } } },
+        select: {
+          id: true,
+          created_at: true,
+          updated_at: true,
+          program_type: true,
+          track: true,
+          routine_type: true,
+          routine_number: true,
+          exam_date: true,
+          academic_year: true,
+          session_label: true,
+          title: true,
+          description: true,
+          file_mime_type: true,
+          file_path: true,
+          is_published: true,
+          is_pinned: false,
+          package_id: true,
+          package: { select: { id: true, title: true } }
+        }
       }),
       this.prisma.routine.count({ where }),
     ]);
@@ -207,10 +227,86 @@ export class RoutineService {
     };
   }
 
+  // get pinned routines
+  async findPinnedRoutinesForUser(query: PinnedQueryRoutineUserDto) {
+    const { package_id, program_type, filter = 'all', search } = query;
+    if (!package_id) throw new BadRequestException('Package ID is required');
+    if (!program_type) throw new BadRequestException('Program type is required');
+
+    const where: Prisma.RoutineWhereInput = {
+      is_published: true,
+      is_pinned: true,
+      program_type,
+      OR: [
+        { package_id },
+        { package_id: null, program_type: program_type, },
+      ],
+    };
+
+    const now = new Date();
+
+    if (filter === 'done') {
+      where.exam_date = { lt: now };
+    } else if (filter === 'remain') {
+      where.OR = [
+        { exam_date: { gte: now } },
+        { exam_date: null },
+      ];
+    }
+
+    if (search) {
+      where.title = { contains: search, mode: 'insensitive' };
+    }
+
+    const routines = await this.prisma.routine.findMany({
+      where,
+      select: {
+        id: true,
+        created_at: true,
+        updated_at: true,
+        program_type: true,
+        track: true,
+        routine_type: true,
+        routine_number: true,
+        exam_date: true,
+        academic_year: true,
+        session_label: true,
+        title: true,
+        description: true,
+        file_mime_type: true,
+        file_path: true,
+        is_published: true,
+        is_pinned: false,
+        package_id: true,
+        package: { select: { id: true, title: true } }
+      }
+    });
+    return routines;
+  }
+
   async findOneForUser(id: string) {
     const routine = await this.prisma.routine.findUnique({
       where: { id },
-      include: { package: { select: { id: true, title: true } } },
+      select: {
+        id: true,
+        created_at: true,
+        updated_at: true,
+        program_type: true,
+        track: true,
+        routine_type: true,
+        routine_number: true,
+        exam_date: true,
+        academic_year: true,
+        session_label: true,
+        title: true,
+        description: true,
+        file_mime_type: true,
+        file_path: true,
+        is_published: true,
+        is_pinned: false,
+        package_id: true,
+        package: { select: { id: true, title: true } }
+      }
     });
 
     if (!routine || !routine.is_published) {
