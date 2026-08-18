@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Req, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { WrittenExamService } from './written-exam.service';
-import { CreateWrittenExamDto, UpdateWrittenExamDto } from './dto/written-exam.dto';
+import { CreateWrittenExamDto, UpdateWrittenExamDto } from './dto/create-written-exam.dto';
 import { Request } from 'express';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guard/role/roles.guard';
