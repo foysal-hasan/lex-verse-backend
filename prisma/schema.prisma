@@ -668,7 +668,6 @@ model Quiz {
   quiz_allowed_users     QuizAllowedUser[]
   bar_responses          BarResponse[]
   written_submissions    WrittenSubmission[]
-  questions              Question[]
   responses              Response[]
   user_score_history     UserScoreHistory[]
   bar_user_score_history BarUserScoreHistory[]
@@ -700,48 +699,53 @@ model QuizAllowedUser {
 }
 
 // Question Model
-model Question {
+model MCQQuestion {
   id         String   @id @default(uuid())
   created_at DateTime @default(now()) @db.Timestamptz
   updated_at DateTime @updatedAt @db.Timestamptz
 
-  quiz_id           String?
-  options           Json?     @db.Json
-  correct_answer    String?
   question_text     String?
-  time_limit        Int?      @default(30)
-  question_type     String?   @default("mcq")
-  question_image    String?
-  explanation_text  String?
-  explanation_math  String?
-  explanation_image String?
-  negative_marks    Decimal?  @default(0) @db.Decimal
+  question_file_path    String?
+  question_file_mime_type String?
+  options           Option[]
+
+  correct_answer    String
+  explanation_text  String?   @db.Text
+  explanation_math  String?   @db.Text
+  explanation_file_path String?
+  explanation_file_mime_type String?
+ 
+  created_by        String?
+
   deleted_at        DateTime? @db.Timestamptz
   deleted_by        String?
-  section_id        String?
-  section_position  Int?
 
-  // Relations
-  section ExamSection? @relation(fields: [section_id], references: [id], onDelete: SetNull)
-  quiz    Quiz?        @relation(fields: [quiz_id], references: [id], onDelete: SetNull)
-
-  submissions   WrittenSubmission[]
-  responses     Response[]
-  bar_responses BarResponse[]
-
-  @@index([quiz_id, section_id, section_position], map: "idx_questions_quiz_section")
   @@index([deleted_at], map: "idx_questions_deleted_at")
-  @@map("questions")
+  @@map("mcq_questions")
 }
 
-model ExamSection {
-  id String @id @default(uuid())
+model Option {
+  id          String   @id @default(cuid())
+  question_id  String
+  question    MCQQuestion @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  
+  option_key   String?   // e.g., "Option 1", "Option 2", etc., or "A", "B", "C", "D"
+  option_text  String   // The text content of the option
 
-  // Relations
-  questions Question[]
-
-  @@map("exam_sections")
+  @@index([question_id])
 }
+
+
+
+
+// model ExamSection {
+//   id String @id @default(uuid())
+
+//   // Relations
+//   questions Question[]
+
+//   @@map("exam_sections")
+// }
 
 // Response Model (Stores user answers for quiz/question bank items)
 model Response {
@@ -759,7 +763,6 @@ model Response {
   package  Package?  @relation(fields: [package_id], references: [id], onDelete: SetNull)
   user     User?     @relation(fields: [user_id], references: [id], onDelete: SetNull)
   quiz     Quiz?     @relation(fields: [quiz_id], references: [id], onDelete: SetNull)
-  question Question? @relation(fields: [question_id], references: [id], onDelete: SetNull)
 
   @@index([question_bank_id], map: "responses_qb_idx")
   @@index([user_id, quiz_id, package_id], map: "responses_user_quiz_pkg_idx")
@@ -784,7 +787,6 @@ model BarResponse {
   package  Package? @relation(fields: [package_id], references: [id], onDelete: SetNull)
   user     User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
   quiz     Quiz     @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
-  question Question @relation(fields: [question_id], references: [id], onDelete: Cascade)
 
   @@index([question_bank_id], map: "bar_responses_qb_idx")
   @@index([user_id, quiz_id, package_id], map: "bar_responses_user_quiz_pkg_idx")
@@ -2228,6 +2230,9 @@ model QuestionSet {
   // Relations
   written_exam_questions WrittenExamQuestion[]
   written_exams WrittenExam[]
+
+  mcq_questions MCQQuestion[]
+
 
   @@map("question_sets")
 }
