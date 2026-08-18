@@ -11,6 +11,7 @@ export enum AllowedUploadFolders {
   NOTES = 'notes',
   SYLLABUS = 'syllabus',
   ROUTINES = 'routines',
+  EXAMS = 'exams'
 }
 
 @Injectable()

@@ -12,11 +12,11 @@ import { TransformResponseInterceptor } from 'src/common/interceptors/response.i
 export class UserWrittenExamController {
   constructor(private readonly writtenExamService: WrittenExamService) {}
 
-  @Get()
-  @ApiOperation({ summary: 'Get available written exams for user' })
-  async findUserExams(@Req() req: Request) {
-    return await this.writtenExamService.findAll();
-  }
+  // @Get()
+  // @ApiOperation({ summary: 'Get available written exams for user' })
+  // async findUserExams(@Req() req: Request) {
+  //   return await this.writtenExamService.findAll();
+  // }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get details of a specific written exam' })
