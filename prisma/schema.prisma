@@ -112,8 +112,8 @@ model User {
   reviewed_submissions               WrittenSubmission[]              @relation("UserReviewedSubmissions")
   written_exam_resubmission_requests WrittenExamResubmissionRequest[]
 
-  created_written_exams WrittenExam[] @relation("created_written_exams")
-  deleted_written_exams WrittenExam[] @relation("deleted_written_exams")
+  created_exams Exam[] @relation("created_exams")
+  deleted_exams Exam[] @relation("deleted_exams")
 
   @@map("users")
 }
@@ -244,7 +244,7 @@ model Package {
   notes                   Note[]
   syllabuses              Syllabus[]
   routines                Routine[]
-  package_written_exams   PackageWrittenExam[]
+  package_exams             PackageExam[]
 
   @@map("packages")
 }
@@ -429,7 +429,7 @@ model Routine {
 
   package_id            String?
   package               Package?             @relation(fields: [package_id], references: [id], onDelete: SetNull)
-  package_written_exams PackageWrittenExam[]
+  package_exams             PackageExam[]
 
   @@map("routines")
 }
@@ -526,11 +526,10 @@ model WrittenSubmission {
   package_id              String?
 
   quiz     Quiz?        @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
-  exam     WrittenExam? @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  exam     Exam?          @relation(fields: [exam_id], references: [id], onDelete: Cascade)
   package  Package?     @relation(fields: [package_id], references: [id], onDelete: SetNull)
   user     User         @relation("UserWrittenSubmissions", fields: [user_id], references: [id], onDelete: Cascade)
   reviewer User?        @relation("UserReviewedSubmissions", fields: [reviewed_by], references: [id])
-  question Question?    @relation(fields: [question_id], references: [id], onDelete: SetNull)
 
   @@index([user_id], map: "idx_written_submissions_user")
   @@index([quiz_id], map: "idx_written_submissions_quiz")
@@ -619,6 +618,8 @@ model University {
 model Quiz {
   id                   String    @id @default(uuid())
   title                String?
+  program_type         String?   @default("general")
+
   description          String?
   time_limit           Int?
   created_by           String?
@@ -627,9 +628,8 @@ model Quiz {
   has_negative_marking Boolean?  @default(false)
   allow_answer_change  Boolean   @default(false)
   negative_mark_value  Decimal   @default(0.25)
-  program_type         String?   @default("general")
+  
   exam_type            String?   @default("preliminary")
-  is_live              Boolean?  @default(false)
   live_start_time      DateTime? @db.Timestamptz
   live_end_time        DateTime? @db.Timestamptz
   is_premium           Boolean?  @default(false)
@@ -2137,16 +2137,37 @@ enum WrittenExamQuestionType {
   single_document_pdf_or_image
 }
 
-model WrittenExam {
+enum ExamVisibility {
+  public
+  private
+}
+
+
+
+model Exam {
   id          String     @id @default(uuid())
+  // general info
   title       String
   subjects    String[]   @default([])
   description String?    @db.Text
   program     PkgProgram
+  track       PkgTrack
 
-  total_marks Int? @default(100)
+  total_marks Int @default(100)
+  pass_mark_percentage Int @default(40)
 
-  question_type_type WrittenExamQuestionType
+  // Written
+  written_exam_question_type_type WrittenExamQuestionType?
+  written_exam_question_file_path      String?
+  written_exam_question_file_mime_type String?
+
+  // MCQ
+  visibility ExamVisibility? @default(public)
+  is_negative_marking Boolean? @default(false)
+  negative_mark_per_question Int @default(0)
+  is_free_demo Boolean? @default(false)
+  is_enabled_per_question_time_limit Boolean @default(false)
+  per_question_time_limit Int? @default(0)
 
   created_by String?
   created_at DateTime @default(now()) @db.Timestamptz
@@ -2154,50 +2175,48 @@ model WrittenExam {
   deleted_at DateTime? @db.Timestamptz
   deleted_by String?
 
-  question_file_path      String?
-  question_file_mime_type String?
 
   question_set_id String?
   question_sets QuestionSet? @relation(fields: [question_set_id], references: [id], onDelete: SetNull)
 
-  creator         User? @relation(name: "created_written_exams", fields: [created_by], references: [id], onDelete: SetNull)
-  deleted_by_user User? @relation(name: "deleted_written_exams", fields: [deleted_by], references: [id], onDelete: SetNull)
+  creator         User? @relation(name: "created_exams", fields: [created_by], references: [id], onDelete: SetNull)
+  deleted_by_user User? @relation(name: "deleted_exams", fields: [deleted_by], references: [id], onDelete: SetNull)
 
  
   written_exam_resubmission_accesses WrittenExamResubmissionAccess[]
   written_exam_allowed_users         WrittenExamAllowedUser[]
   written_submissions                WrittenSubmission[]
   written_exam_resubmission_requests WrittenExamResubmissionRequest[]
-  package_written_exams              PackageWrittenExam[]
+  package_exams                   PackageExam[]
 
-  @@index([program], map: "idx_written_exams_program")
-  @@index([deleted_at], map: "written_exams_deleted_at_idx")
-  @@index([deleted_at], map: "idx_written_exams_deleted_at")
-  @@map("written_exams")
+  @@index([program], map: "idx_exams_program")
+  @@index([deleted_at], map: "exams_deleted_at_idx")
+  @@index([deleted_at], map: "idx_exams_deleted_at")
+  @@map("exams")
 }
 
-model PackageWrittenExam {
+model PackageExam {
   package_id      String
-  written_exam_id String
+  exam_id String
 
   title          String
   routine_id     String?
-  start_datetime DateTime @db.Timestamptz
-  end_datetime   DateTime @db.Timestamptz
+  live_start_datetime DateTime @db.Timestamptz
+  live_end_datetime   DateTime @db.Timestamptz
 
   // Relations
   package      Package     @relation(fields: [package_id], references: [id], onDelete: Cascade)
-  written_exam WrittenExam @relation(fields: [written_exam_id], references: [id], onDelete: Cascade)
+  exam Exam @relation(fields: [exam_id], references: [id], onDelete: Cascade)
   routine      Routine?    @relation(fields: [routine_id], references: [id], onDelete: SetNull)
 
   // Composite Primary Key (Ensures an exam can only be attached once per package)
-  @@id([package_id, written_exam_id])
-  @@index([package_id], map: "idx_package_written_exams_package_id")
-  @@index([written_exam_id], map: "idx_package_written_exams_exam_id")
-  @@map("package_written_exams")
+  @@id([package_id, exam_id])
+  @@index([package_id], map: "idx_package_exams_package_id")
+  @@index([exam_id], map: "idx_package_exams_exam_id")
+  @@map("package_exams")
 }
 
-model WrittenExamQuestion {
+model ExamQuestion {
   id         String   @id @default(uuid())
   created_at DateTime @default(now()) @db.Timestamptz
   updated_at DateTime @default(now()) @db.Timestamptz
@@ -2228,11 +2247,8 @@ model QuestionSet {
   description String?    @db.Text
 
   // Relations
-  written_exam_questions WrittenExamQuestion[]
-  written_exams WrittenExam[]
-
-  mcq_questions MCQQuestion[]
-
+  exam_questions ExamQuestion[]
+  exams Exam[]
 
   @@map("question_sets")
 }
@@ -2244,7 +2260,7 @@ model WrittenExamAllowedUser {
   granted_by String?
   granted_at DateTime @default(now()) @db.Timestamptz
 
-  exam WrittenExam @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  exam Exam @relation(fields: [exam_id], references: [id], onDelete: Cascade)
   user User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([exam_id, user_id], map: "written_exam_allowed_users_exam_id_user_id_key")
@@ -2290,7 +2306,7 @@ model WrittenExamResubmissionRequest {
   evidence_path String?
 
   user User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  exam WrittenExam @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  exam Exam @relation(fields: [exam_id], references: [id], onDelete: Cascade)
 
   // relations
   resubmission_accesses WrittenExamResubmissionAccess[]
@@ -2323,7 +2339,7 @@ model WrittenExamResubmissionAccess {
 
   request WrittenExamResubmissionRequest @relation(fields: [request_id], references: [id], onDelete: Cascade)
   user    User                           @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  exam    WrittenExam                    @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  exam    Exam                           @relation(fields: [exam_id], references: [id], onDelete: Cascade)
 
   @@index([user_id, exam_id], map: "idx_wer_access_user_exam")
   @@index([user_id, exam_id, expires_at], map: "idx_wer_access_active")
