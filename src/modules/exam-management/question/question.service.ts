@@ -9,11 +9,11 @@ import { AdminGetQuestionsQueryDto } from './dto/admin-get-questions-query.dto';
 
 
 @Injectable()
-export class WrittenExamQuestionService {
+export class ExamQuestionService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateQuestionDto) {
-    return await this.prisma.writtenExamQuestion.create({
+    return await this.prisma.examQuestion.create({
       data: {
         ...dto,
         marks: dto.marks ? new Decimal(dto.marks) : undefined,
@@ -30,7 +30,7 @@ export class WrittenExamQuestionService {
       guidelines: q.guidelines,
     }));
 
-    return await this.prisma.writtenExamQuestion.createMany({
+    return await this.prisma.examQuestion.createMany({
       data: formattedData,
       skipDuplicates: true,
     });
@@ -54,13 +54,13 @@ export class WrittenExamQuestionService {
 
   // Execute queries in parallel
   const [items, total] = await Promise.all([
-    this.prisma.writtenExamQuestion.findMany({
+    this.prisma.examQuestion.findMany({
       where,
       skip,
       take: limit,
       orderBy: { created_at: 'desc' },
     }),
-    this.prisma.writtenExamQuestion.count({ where }),
+    this.prisma.examQuestion.count({ where }),
   ]);
 
   return {
@@ -75,7 +75,7 @@ export class WrittenExamQuestionService {
 }
 
   async findOne(id: string) {
-    const question = await this.prisma.writtenExamQuestion.findFirst({
+    const question = await this.prisma.examQuestion.findFirst({
       where: { id, deleted_at: null },
     });
     if (!question) throw new NotFoundException('Question not found');
@@ -84,7 +84,7 @@ export class WrittenExamQuestionService {
 
   async update(id: string, dto: UpdateQuestionDto) {
     await this.findOne(id);
-    return await this.prisma.writtenExamQuestion.update({
+    return await this.prisma.examQuestion.update({
       where: { id },
       data: {
         ...dto,
@@ -95,7 +95,7 @@ export class WrittenExamQuestionService {
 
   async remove(id: string, userId: string) {
     await this.findOne(id);
-    const question = await this.prisma.writtenExamQuestion.update({
+    const question = await this.prisma.examQuestion.update({
       where: { id },
       data: {
         deleted_at: new Date(),
@@ -103,7 +103,7 @@ export class WrittenExamQuestionService {
       },
     });
 
-    if(!question?.question_file_path){
+    if(question?.question_file_path){
         await Storage.delete(question.question_file_path);
     }
     return { id};

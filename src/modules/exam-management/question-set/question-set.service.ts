@@ -6,9 +6,6 @@ import { CreateQuestionSetDto } from './dto/create-question-set.dto';
 import { AdminGetQuestionSetsQueryDto } from './dto/admin-get-question-sets-query.dto';
 import { UpdateQuestionSetDto } from './dto/update-question-set.dto';
 
-
-
-
 @Injectable()
 export class QuestionSetService {
   constructor(private prisma: PrismaService) { }
@@ -19,13 +16,10 @@ export class QuestionSetService {
     return await this.prisma.questionSet.create({
       data: {
         ...setData,
-        written_exam_questions: {
-          // Connect existing question IDs if provided
+        exam_questions: {
           ...(question_ids && question_ids.length > 0
             ? { connect: question_ids.map((id) => ({ id })) }
             : {}),
-
-          // Create new questions inline if provided
           ...(questions && questions.length > 0
             ? {
               create: questions.map((q) => ({
@@ -40,7 +34,7 @@ export class QuestionSetService {
         },
       },
       include: {
-        written_exam_questions: true,
+        exam_questions: true,
       },
     });
   }
@@ -51,17 +45,14 @@ export class QuestionSetService {
 
     const where: any = {};
 
-    // Filter by program if provided
     if (program) {
       where.program = program;
     }
 
-    // Filter by track if provided
     if (track) {
       where.track = track;
     }
 
-    // Search filter across title or description case-insensitively
     if (search) {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
@@ -69,7 +60,6 @@ export class QuestionSetService {
       ];
     }
 
-    // Execute records fetch and total count concurrently
     const [items, total] = await Promise.all([
       this.prisma.questionSet.findMany({
         where,
@@ -98,8 +88,8 @@ export class QuestionSetService {
     const questionSet = await this.prisma.questionSet.findUnique({
       where: { id },
       include: {
-        written_exam_questions: true,
-        written_exams: true,
+        exam_questions: true,
+        exams: true,
       },
     });
 
@@ -110,16 +100,14 @@ export class QuestionSetService {
   }
 
   async update(id: string, dto: UpdateQuestionSetDto) {
-    // Ensure the question set exists
     await this.findOne(id);
 
     const { questions, ...setData } = dto;
 
     const questionUpdates: any = {};
 
-    // If new inline questions are passed during update, create and append them
     if (questions && questions.length > 0) {
-      questionUpdates.written_exam_questions = {
+      questionUpdates.exam_questions = {
         create: questions.map((q) => ({
           question_text: q.question_text,
           question_file_path: q.question_file_path,
@@ -137,7 +125,7 @@ export class QuestionSetService {
         ...questionUpdates,
       },
       include: {
-        written_exam_questions: true,
+        exam_questions: true,
       },
     });
   }
@@ -151,19 +139,18 @@ export class QuestionSetService {
     return { id }
   }
 
-
   async attachQuestions(id: string, questionIds: string[]) {
     await this.findOne(id);
 
     return await this.prisma.questionSet.update({
       where: { id },
       data: {
-        written_exam_questions: {
+        exam_questions: {
           connect: questionIds.map((qid) => ({ id: qid })),
         },
       },
       include: {
-        written_exam_questions: true,
+        exam_questions: true,
       },
     });
   }
@@ -174,12 +161,12 @@ export class QuestionSetService {
     return await this.prisma.questionSet.update({
       where: { id },
       data: {
-        written_exam_questions: {
+        exam_questions: {
           disconnect: questionIds.map((qid) => ({ id: qid })),
         },
       },
       include: {
-        written_exam_questions: true,
+        exam_questions: true,
       },
     });
   }

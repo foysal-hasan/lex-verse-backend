@@ -724,16 +724,16 @@ model MCQQuestion {
   @@map("mcq_questions")
 }
 
-model Option {
-  id          String   @id @default(cuid())
-  question_id  String
-  question    MCQQuestion @relation(fields: [question_id], references: [id], onDelete: Cascade)
+// model Option {
+//   id          String   @id @default(cuid())
+//   question_id  String
+//   question    MCQQuestion @relation(fields: [question_id], references: [id], onDelete: Cascade)
   
-  option_key   String?   // e.g., "Option 1", "Option 2", etc., or "A", "B", "C", "D"
-  option_text  String   // The text content of the option
+//   option_key   String?   // e.g., "Option 1", "Option 2", etc., or "A", "B", "C", "D"
+//   option_text  String   // The text content of the option
 
-  @@index([question_id])
-}
+//   @@index([question_id])
+// }
 
 
 
@@ -2216,25 +2216,80 @@ model PackageExam {
   @@map("package_exams")
 }
 
-model ExamQuestion {
-  id         String   @id @default(uuid())
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @default(now()) @db.Timestamptz
+// model ExamQuestion {
+//   id         String   @id @default(uuid())
+//   created_at DateTime @default(now()) @db.Timestamptz
+//   updated_at DateTime @default(now()) @db.Timestamptz
 
-  question_text           String
-  question_file_path      String?
-  question_file_mime_type String?
-  marks                   Decimal? @default(10)
-  guidelines              String?
+//   question_text           String
+//   question_file_path      String?
+//   question_file_mime_type String?
+//   marks                   Decimal? @default(10)
+//   guidelines              String?
 
-  deleted_at DateTime? @db.Timestamptz
-  deleted_by String?
+//   deleted_at DateTime? @db.Timestamptz
+//   deleted_by String?
 
-  question_sets QuestionSet[]
+//   question_sets QuestionSet[]
 
-  @@index([deleted_at], map: "written_exam_questions_deleted_at_idx")
-  @@map("written_exam_questions")
+//   @@index([deleted_at], map: "written_exam_questions_deleted_at_idx")
+//   @@map("written_exam_questions")
+// }
+
+
+enum ExamFormat {
+  MCQ
+  WRITTEN
 }
+
+model Question {
+  id                         String       @id @default(uuid())
+  created_at                 DateTime     @default(now()) @db.Timestamptz
+  updated_at                 DateTime     @updatedAt @db.Timestamptz
+  
+  // Discriminator to define if it's an MCQ or Written question
+  format                     ExamFormat   @default(MCQ)
+
+  // Common Question Fields
+  question_text              String
+  question_file_path         String?
+  question_file_mime_type    String?
+
+  // --- MCQ Specific Fields (Null if format is WRITTEN) ---
+  options                    Option[]
+  correct_answer             String?      
+  explanation_text           String?      @db.Text
+  explanation_math           String?      @db.Text
+  explanation_file_path      String?
+  explanation_file_mime_type String?
+
+  // --- Written Exam Specific Fields (Null if format is MCQ) ---
+  marks                      Decimal?     @default(10)
+  guidelines                 String?      @db.Text
+
+  // Metadata & Soft Deletes
+  created_by                 String?
+  deleted_at                 DateTime?    @db.Timestamptz
+  deleted_by                 String?
+
+  // Relations matching your requirement: Question -> QuestionSet
+  question_sets              QuestionSet[]
+
+  @@index([deleted_at], map: "idx_questions_deleted_at")
+  @@map("questions")
+}
+
+model Option {
+  id          String      @id @default(cuid())
+  question_id String
+  question    Question    @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  
+  option_key  String?     // e.g., "A", "B", "C", "D"
+  option_text String      
+
+  @@index([question_id])
+}
+
 
 model QuestionSet {
   id         String   @id @default(uuid())

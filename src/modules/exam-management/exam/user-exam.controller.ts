@@ -1,26 +1,27 @@
 import { Controller, Get, Param, Req, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { WrittenExamService } from './written-exam.service';
+
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
+import { ExamService } from './exam.service';
 
-@ApiTags('User - Written Exams')
+@ApiTags('User - Exams')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @UseInterceptors(TransformResponseInterceptor)
-@Controller('user/written-exams')
-export class UserWrittenExamController {
-  constructor(private readonly writtenExamService: WrittenExamService) {}
+@Controller('user/exams')
+export class UserExamController {
+  constructor(private readonly examService: ExamService) {}
 
   // @Get()
-  // @ApiOperation({ summary: 'Get available written exams for user' })
+  // @ApiOperation({ summary: 'Get available exams for user' })
   // async findUserExams(@Req() req: Request) {
-  //   return await this.writtenExamService.findAll();
+  //   return await this.examService.findAll();
   // }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get details of a specific written exam' })
+  @ApiOperation({ summary: 'Get details of a specific exam' })
   async findOne(@Param('id') id: string) {
-    return await this.writtenExamService.findOne(id);
+    return await this.examService.findOne(id);
   }
 }

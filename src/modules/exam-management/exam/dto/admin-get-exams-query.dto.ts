@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 import { PkgProgram } from 'src/generated/prisma/enums';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
-export class AdminGetWrittenExamsQueryDto {
+export class AdminGetExamsQueryDto {
   @ApiPropertyOptional({ default: 1, description: 'Page number' })
   @IsOptional()
   @Type(() => Number)

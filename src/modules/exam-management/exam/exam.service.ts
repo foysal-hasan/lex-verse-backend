@@ -1,38 +1,47 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PkgProgram } from 'src/generated/prisma/enums';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateWrittenExamDto, UpdateWrittenExamDto } from './dto/create-written-exam.dto';
-import { AdminGetWrittenExamsQueryDto } from './dto/admin-get-written-exams-query.dto';
+import { CreateExamDto } from './dto/create-exam.dto';
+import { UpdateExamDto } from './dto/update-exam.dto';
+import { AdminGetExamsQueryDto } from './dto/admin-get-exams-query.dto';
 import { AttachPackagesDto } from './dto/attach-packages.dto';
 import { Storage } from 'src/common/lib/Disk/Storage';
+import { Prisma } from 'src/generated/prisma/client';
 
 @Injectable()
-export class WrittenExamService {
+export class ExamService {
   constructor(private prisma: PrismaService) { }
 
-  async create(dto: CreateWrittenExamDto) {
-    const { packages, ...examData } = dto;
+  async create(dto: CreateExamDto) {
+    const { packages, created_by, ...examData } = dto;
 
-    return await this.prisma.writtenExam.create({
-      data: {
-        ...examData,
-        package_written_exams: {
-          create: packages.map((pkg) => ({
-            package_id: pkg.package_id,
-            title: pkg.title,
-            routine_id: pkg.routine_id,
-            start_datetime: pkg.start_datetime,
-            end_datetime: pkg.end_datetime,
-          })),
-        },
+    const data: Prisma.ExamCreateInput = {
+      ...examData,
+      ...(created_by
+        ? { creator: { connect: { id: created_by } } }
+        : {}),
+      package_exams: {
+        create: packages.map((pkg) => ({
+          package: { connect: { id: pkg.package_id } },
+          title: pkg.title,
+          ...(pkg.routine_id
+            ? { routine: { connect: { id: pkg.routine_id } } }
+            : {}),
+          live_start_datetime: new Date(pkg.start_datetime),
+          live_end_datetime: new Date(pkg.end_datetime),
+        })),
       },
+    };
+
+    return await this.prisma.exam.create({
+      data,
       include: {
-        package_written_exams: true,
+        package_exams: true,
       },
     });
   }
 
-  async findAll(query: AdminGetWrittenExamsQueryDto) {
+  async findAll(query: AdminGetExamsQueryDto) {
     const { page = 1, limit = 10, search, program, package_id } = query;
     const skip = (page - 1) * limit;
 
@@ -46,7 +55,7 @@ export class WrittenExamService {
 
     // Filter by package relationship if package_id is provided
     if (package_id) {
-      where.package_written_exams = {
+      where.package_exams = {
         some: {
           package_id: package_id,
         },
@@ -63,17 +72,17 @@ export class WrittenExamService {
 
     // Execute records fetch and total count concurrently
     const [items, total] = await Promise.all([
-      this.prisma.writtenExam.findMany({
+      this.prisma.exam.findMany({
         where,
         skip,
         take: limit,
         include: {
-          package_written_exams: true,
+          package_exams: true,
           question_sets: true,
         },
         orderBy: { created_at: 'desc' },
       }),
-      this.prisma.writtenExam.count({ where }),
+      this.prisma.exam.count({ where }),
     ]);
 
     return {
@@ -88,34 +97,33 @@ export class WrittenExamService {
   }
 
   async findOne(id: string) {
-    const exam = await this.prisma.writtenExam.findFirst({
+    const exam = await this.prisma.exam.findFirst({
       where: { id, deleted_at: null },
       include: {
-        package_written_exams: true,
+        package_exams: true,
         question_sets: {
-          include: { written_exam_questions: true },
+          include: { exam_questions: true },
         },
       },
     });
 
     if (!exam) {
-      throw new NotFoundException('Written exam not found');
+      throw new NotFoundException('Exam not found');
     }
     return exam;
   }
 
-  async update(id: string, dto: UpdateWrittenExamDto) {
+  async update(id: string, dto: UpdateExamDto) {
     await this.findOne(id); // Ensure existence
-    const { packages, ...rest } = dto
-    return await this.prisma.writtenExam.update({
+    return await this.prisma.exam.update({
       where: { id },
-      data: rest,
+      data: dto,
     });
   }
 
   async remove(id: string, userId: string) {
     await this.findOne(id);
-    const we = await this.prisma.writtenExam.update({
+    const we = await this.prisma.exam.update({
       where: { id },
       data: {
         deleted_at: new Date(),
@@ -123,8 +131,8 @@ export class WrittenExamService {
       },
     });
 
-    if (we.question_file_path) {
-      await Storage.delete(we.question_file_path)
+    if (we.written_exam_question_file_path) {
+      await Storage.delete(we.written_exam_question_file_path)
     }
 
     return { id }
@@ -134,15 +142,15 @@ export class WrittenExamService {
     await this.findOne(examId);
 
     const data = dto.packages.map((pkg) => ({
-      written_exam_id: examId,
+      exam_id: examId,
       package_id: pkg.package_id,
       title: pkg.title,
       routine_id: pkg.routine_id,
-      start_datetime: new Date(pkg.start_datetime),
-      end_datetime: new Date(pkg.end_datetime),
+      live_start_datetime: new Date(pkg.start_datetime),
+      live_end_datetime: new Date(pkg.end_datetime),
     }));
 
-    return await this.prisma.packageWrittenExam.createMany({
+    return await this.prisma.packageExam.createMany({
       data,
       skipDuplicates: true,
     });
@@ -151,9 +159,9 @@ export class WrittenExamService {
   async detachPackages(examId: string, packageIds: string[]) {
     await this.findOne(examId);
 
-    return await this.prisma.packageWrittenExam.deleteMany({
+    return await this.prisma.packageExam.deleteMany({
       where: {
-        written_exam_id: examId,
+        exam_id: examId,
         package_id: { in: packageIds },
       },
     });

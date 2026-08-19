@@ -8,7 +8,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 
-export class PackageWrittenExamMappingDto {
+export class PackageExamMappingDto {
     @ApiProperty({
         description: 'The unique identifier of the package',
         example: '123e4567-e89b-12d3-a456-426614174000'
@@ -17,7 +17,7 @@ export class PackageWrittenExamMappingDto {
     package_id: string;
 
     @ApiProperty({
-        description: 'The title/name of the written exam specific to this package',
+        description: 'The title/name of the exam specific to this package',
         example: 'Midterm Exam - Batch A'
     })
     @IsString()
