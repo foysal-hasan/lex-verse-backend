@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -28,6 +28,7 @@ import { NotePurchaseModule } from './modules/note-purchase/note-purchase.module
 import { SyllabusModule } from './modules/syllabus/syllabus.module';
 import { RoutineModule } from './modules/routine/routine.module';
 import { ExamManagementModule } from './modules/exam-management/exam-management.module';
+import { ClientTimestampMiddleware } from './common/middleware/client-timestamp.middleware';
 
 
 @Module({
@@ -78,4 +79,10 @@ import { ExamManagementModule } from './modules/exam-management/exam-management.
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(ClientTimestampMiddleware)
+      .forRoutes('*'); // Applies to all routes across the entire application
+  }
+}

@@ -219,7 +219,7 @@ model Package {
   batch_locks_new_only           Boolean      @default(true)
   details_json                   Json?        @default("{}") @db.JsonB
   created_at                     DateTime     @default(now()) @db.Timestamptz
-  updated_at                     DateTime     @default(now()) @db.Timestamptz
+  updated_at                     DateTime     @updatedAt @db.Timestamptz
   details_html                   String?
   allow_program_routine_fallback Boolean      @default(true)
   includes_all_notes             Boolean      @default(false)

@@ -98,6 +98,16 @@ async function bootstrap() {
     .setVersion('1.0')
     .addTag(`${appConfig().app.name}`)
     .addBearerAuth()
+    .addGlobalParameters({
+      name: 'x-client-timestamp',
+      in: 'header',
+      required: true,
+      description: 'Client ISO timestamp (e.g. 2026-08-20T13:00:00.000Z)',
+      schema: {
+        type: 'string',
+        default: new Date().toISOString(),
+      },
+    })
     .build();
 
   const document = SwaggerModule.createDocument(app, options, {
