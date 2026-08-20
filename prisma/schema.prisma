@@ -707,7 +707,7 @@ model MCQQuestion {
   question_text     String?
   question_file_path    String?
   question_file_mime_type String?
-  options           Option[]
+  // options           Option[]
 
   correct_answer    String
   explanation_text  String?   @db.Text
@@ -2143,7 +2143,6 @@ enum ExamVisibility {
 }
 
 
-
 model Exam {
   id          String     @id @default(uuid())
   // general info
@@ -2248,7 +2247,7 @@ model Question {
   updated_at                 DateTime     @updatedAt @db.Timestamptz
   
   // Discriminator to define if it's an MCQ or Written question
-  format                     ExamFormat   @default(MCQ)
+  format                     ExamFormat
 
   // Common Question Fields
   question_text              String
@@ -2275,7 +2274,7 @@ model Question {
   // Relations matching your requirement: Question -> QuestionSet
   question_sets              QuestionSet[]
 
-  @@index([deleted_at], map: "idx_questions_deleted_at")
+  @@index([deleted_at], map: "questions_deleted_at_idx")
   @@map("questions")
 }
 
@@ -2288,6 +2287,7 @@ model Option {
   option_text String      
 
   @@index([question_id])
+  @@map("options")
 }
 
 
@@ -2302,7 +2302,7 @@ model QuestionSet {
   description String?    @db.Text
 
   // Relations
-  exam_questions ExamQuestion[]
+  questions Question[]
   exams Exam[]
 
   @@map("question_sets")

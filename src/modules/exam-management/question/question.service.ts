@@ -1,111 +1,125 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Storage } from 'src/common/lib/Disk/Storage';
-import { Decimal } from 'src/generated/prisma/internal/prismaNamespace';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
-import { BulkUploadQuestionsDto } from './dto/bulk-upload-questions.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { AdminGetQuestionsQueryDto } from './dto/admin-get-questions-query.dto';
-
+import { BulkUploadQuestionsDto } from './dto/bulk-upload-questions.dto';
 
 @Injectable()
-export class ExamQuestionService {
-  constructor(private prisma: PrismaService) {}
+export class QuestionService {
+  constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateQuestionDto) {
-    return await this.prisma.examQuestion.create({
+  async create(dto: CreateQuestionDto, userId?: string) {
+    const { options, ...rest } = dto;
+
+    return this.prisma.question.create({
       data: {
-        ...dto,
-        marks: dto.marks ? new Decimal(dto.marks) : undefined,
+        ...rest,
+        created_by: userId,
+        options:
+          options && options.length > 0
+            ? {
+                create: options.map((opt) => ({
+                  option_key: opt.option_key,
+                  option_text: opt.option_text,
+                })),
+              }
+            : undefined,
       },
+      include: { options: true },
     });
   }
 
-  async bulkUpload(dto: BulkUploadQuestionsDto) {
-    const formattedData = dto.questions.map((q) => ({
-      question_text: q.question_text,
-      question_file_path: q.question_file_path,
-      question_file_mime_type: q.question_file_mime_type,
-      marks: q.marks ? new Decimal(q.marks) : new Decimal(10),
-      guidelines: q.guidelines,
-    }));
-
-    return await this.prisma.examQuestion.createMany({
-      data: formattedData,
-      skipDuplicates: true,
-    });
+  async bulkUpload(dto: BulkUploadQuestionsDto, userId?: string) {
+    const results = await Promise.all(
+      dto.questions.map((qDto) => this.create(qDto, userId)),
+    );
+    return {
+      count: results.length,
+      items: results,
+    };
   }
 
- async findAll(query: AdminGetQuestionsQueryDto) {
-  const { page = 1, limit = 10, search } = query;
-  const skip = (page - 1) * limit;
+  async findAll(query: AdminGetQuestionsQueryDto) {
+    const { page = 1, limit = 10, search, format } = query;
+    const skip = (page - 1) * limit;
 
-  const where: any = {
-    deleted_at: null,
-  };
+    const where: Record<string, any> = { deleted_at: null };
+    if (format) where.format = format;
+    if (search) {
+      where.question_text = { contains: search, mode: 'insensitive' };
+    }
 
-  // Add search filter (searches question text or guidelines case-insensitively)
-  if (search) {
-    where.OR = [
-      { question_text: { contains: search, mode: 'insensitive' } },
-      { guidelines: { contains: search, mode: 'insensitive' } },
-    ];
+    const [items, total] = await Promise.all([
+      this.prisma.question.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { created_at: 'desc' },
+        include: { options: true },
+      }),
+      this.prisma.question.count({ where }),
+    ]);
+
+    return {
+      items,
+      meta: { total, page, limit, total_pages: Math.ceil(total / limit) },
+    };
   }
-
-  // Execute queries in parallel
-  const [items, total] = await Promise.all([
-    this.prisma.examQuestion.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: { created_at: 'desc' },
-    }),
-    this.prisma.examQuestion.count({ where }),
-  ]);
-
-  return {
-    items,
-    meta: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
-}
 
   async findOne(id: string) {
-    const question = await this.prisma.examQuestion.findFirst({
+    const question = await this.prisma.question.findFirst({
       where: { id, deleted_at: null },
+      include: { options: true },
     });
-    if (!question) throw new NotFoundException('Question not found');
+
+    if (!question) {
+      throw new NotFoundException('Question not found');
+    }
+
     return question;
   }
 
   async update(id: string, dto: UpdateQuestionDto) {
-    await this.findOne(id);
-    return await this.prisma.examQuestion.update({
-      where: { id },
-      data: {
-        ...dto,
-        marks: dto.marks ? new Decimal(dto.marks) : undefined,
-      },
+    await this.findOne(id); // Ensure question exists and is not deleted
+    const { options, ...rest } = dto;
+
+    // Use transaction to safely handle options synchronization
+    return this.prisma.$transaction(async (prisma) => {
+      if (options) {
+        // Clear existing options and recreate new ones if options array is provided
+        await prisma.option.deleteMany({ where: { question_id: id } });
+      }
+
+      return prisma.question.update({
+        where: { id },
+        data: {
+          ...rest,
+          options:
+            options && options.length > 0
+              ? {
+                  create: options.map((opt) => ({
+                    option_key: opt.option_key,
+                    option_text: opt.option_text,
+                  })),
+                }
+              : undefined,
+        },
+        include: { options: true },
+      });
     });
   }
 
-  async remove(id: string, userId: string) {
+  async remove(id: string, userId?: string) {
     await this.findOne(id);
-    const question = await this.prisma.examQuestion.update({
+
+    await this.prisma.question.update({
       where: { id },
       data: {
         deleted_at: new Date(),
         deleted_by: userId,
       },
     });
-
-    if(question?.question_file_path){
-        await Storage.delete(question.question_file_path);
-    }
-    return { id};
+    return { id };
   }
 }

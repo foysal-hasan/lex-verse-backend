@@ -1,24 +1,30 @@
-import { IsOptional, IsString, IsInt, Min } from 'class-validator';
-import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { ExamFormat } from '@prisma/client';
 
 export class AdminGetQuestionsQueryDto {
-    @ApiPropertyOptional({ description: 'Page number', default: 1 })
-    @IsOptional()
-    @Type(() => Number)
-    @IsInt()
-    @Min(1)
-    page?: number = 1;
+  @ApiPropertyOptional({ default: 1 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  page?: number = 1;
 
-    @ApiPropertyOptional({ description: 'Page size', default: 10 })
-    @IsOptional()
-    @Type(() => Number)
-    @IsInt()
-    @Min(1)
-    limit?: number = 10;
+  @ApiPropertyOptional({ default: 10 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  limit?: number = 10;
 
-    @ApiPropertyOptional({ description: 'Search query' })
-    @IsOptional()
-    @IsString()
-    search?: string;
+  @ApiPropertyOptional({ description: 'Search question text' })
+  @IsString()
+  @IsOptional()
+  search?: string;
+
+  @ApiPropertyOptional({ enum: ExamFormat, description: 'Filter by question format' })
+  @IsEnum(ExamFormat)
+  @IsOptional()
+  format?: ExamFormat;
 }
