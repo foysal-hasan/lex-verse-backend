@@ -1,35 +1,35 @@
-import { IsOptional, IsString, IsInt, Min, IsEnum, IsUUID } from 'class-validator';
-import { Type } from 'class-transformer';
-import { PkgProgram } from 'src/generated/prisma/enums';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { PkgProgram } from '@prisma/client';
 
 export class AdminGetExamsQueryDto {
-  @ApiPropertyOptional({ default: 1, description: 'Page number' })
-  @IsOptional()
+  @ApiPropertyOptional({ default: 1 })
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @IsOptional()
   page?: number = 1;
 
-  @ApiPropertyOptional({ default: 10, description: 'Items per page' })
-  @IsOptional()
+  @ApiPropertyOptional({ default: 10 })
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @IsOptional()
   limit?: number = 10;
 
   @ApiPropertyOptional({ description: 'Search term for title or description' })
-  @IsOptional()
   @IsString()
+  @IsOptional()
   search?: string;
 
-  @ApiPropertyOptional({ enum: PkgProgram, description: 'Filter by program' })
-  @IsOptional()
+  @ApiPropertyOptional({ enum: PkgProgram })
   @IsEnum(PkgProgram)
+  @IsOptional()
   program?: PkgProgram;
 
-  @ApiPropertyOptional({ description: 'Filter by mapped package ID' })
+  @ApiPropertyOptional({ description: 'Filter exams attached to a specific package' })
+  @IsString()
   @IsOptional()
-  @IsUUID()
   package_id?: string;
 }

@@ -1,19 +1,19 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Req, UseGuards, UseInterceptors, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-
+import { Request } from 'express';
+import { ExamService } from './exam.service';
 import { CreateExamDto } from './dto/create-exam.dto';
 import { UpdateExamDto } from './dto/update-exam.dto';
-import { Request } from 'express';
+import { AdminGetExamsQueryDto } from './dto/admin-get-exams-query.dto';
+import { AttachPackagesDto } from './dto/attach-packages.dto';
+import { DetachPackagesDto } from './dto/detach-packages.dto';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guard/role/roles.guard';
 import { UserRole } from 'src/generated/prisma/enums';
 import { Roles } from 'src/common/guard/role/roles.decorator';
 import { TransformResponseInterceptor } from 'src/common/interceptors/response.interceptor';
-import { AdminGetExamsQueryDto } from './dto/admin-get-exams-query.dto';
-import { AttachPackagesDto } from './dto/attach-packages.dto';
-import { DetachPackagesDto } from './dto/detach-packages.dto';
 import { ResponseMessage } from 'src/common/decorator/response-message.decorator';
-import { ExamService } from './exam.service';
+import { UpdatePackageExamDto } from './dto/update-package-exam.dto';
 
 @ApiTags('Admin - Exams')
 @ApiBearerAuth()
@@ -22,13 +22,13 @@ import { ExamService } from './exam.service';
 @UseInterceptors(TransformResponseInterceptor)
 @Controller('admin/exams')
 export class AdminExamController {
-  constructor(private readonly examService: ExamService) { }
+  constructor(private readonly examService: ExamService) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new exam and map to packages' })
   async create(@Body() dto: CreateExamDto, @Req() req: Request) {
     const userId = req.user?.userId;
-    dto.created_by = userId
+    dto.created_by = userId;
     return await this.examService.create(dto);
   }
 
@@ -60,20 +60,25 @@ export class AdminExamController {
   @Post(':id/packages/attach')
   @ApiOperation({ summary: 'Attach packages and schedules to an exam' })
   @ResponseMessage('Packages attached successfully')
-  async attachPackages(
-    @Param('id') id: string,
-    @Body() dto: AttachPackagesDto,
-  ) {
+  async attachPackages(@Param('id') id: string, @Body() dto: AttachPackagesDto) {
     return await this.examService.attachPackages(id, dto);
   }
 
   @Post(':id/packages/detach')
   @ApiOperation({ summary: 'Detach packages from an exam' })
   @ResponseMessage('Packages detached successfully')
-  async detachPackages(
-    @Param('id') id: string,
-    @Body() dto: DetachPackagesDto,
-  ) {
+  async detachPackages(@Param('id') id: string, @Body() dto: DetachPackagesDto) {
     return await this.examService.detachPackages(id, dto.package_ids);
+  }
+
+  @Patch(':examId/packages/:packageId')
+  @ApiOperation({ summary: 'Update schedule details for a specific attached package exam' })
+  @ResponseMessage('Package exam schedule updated successfully')
+  async updatePackageExam(
+    @Param('examId') examId: string,
+    @Param('packageId') packageId: string,
+    @Body() dto: UpdatePackageExamDto,
+  ) {
+    return await this.examService.updatePackageExam(examId, packageId, dto);
   }
 }
