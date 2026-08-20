@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole } from '../src/generated/prisma/client';
+import { ExamFormat, ExamVisibility, PkgKind, PkgProgram, PkgTrack, PrismaClient, UserRole } from '../src/generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import 'dotenv/config';
 import * as bcrypt from 'bcrypt';
@@ -20,12 +20,13 @@ const adminPassword = process.env.SYSTEM_PASSWORD || 'Admin@123!';
 async function main() {
   console.log('🌱 Starting Database Seeding...');
 
-  const { adminUser } = await seedUsers();
-  await seedTokenRules();
-  await seedUniversities();
-  await seedUserWallets(adminUser.id);
-  await seedDiscussionGroups(adminUser.id);
-  await seedPushPromptEvents(adminUser.id);
+  // const { adminUser } = await seedUsers();
+  // await seedTokenRules();
+  // await seedUniversities();
+  // await seedUserWallets(adminUser.id);
+  // await seedDiscussionGroups(adminUser.id);
+  // await seedPushPromptEvents(adminUser.id);
+  await seedExams();
 }
 
 main()
@@ -279,4 +280,109 @@ async function seedPushPromptEvents(adminUserId: string) {
       },
     });
   }
+}
+
+export async function seedExams() {
+  console.log('🌱 Starting exam seeder with full schema compliance...');
+
+  // 1. Create a sample Package following your Package model structure
+  const packageItem = await prisma.package.create({
+    data: {
+      title: 'BJS Preliminary Ultimate Live Batch 2026',
+      program: PkgProgram.bjs,
+      track: PkgTrack.preliminary,
+      kind: PkgKind.batch,
+      price: 5000,
+      discount_price: 4000,
+      details_html: 'Comprehensive batch containing model tests and live exams for BJS.',
+      is_active: true,
+      batch_number: 1,
+    },
+  });
+
+  // 2. Create a Routine following your Routine model structure
+  const routine = await prisma.routine.create({
+    data: {
+      title: 'Model Test Routine Phase 1',
+      package_id: packageItem.id,
+      program_type: PkgProgram.bjs,
+      track: PkgTrack.preliminary,
+      routine_type: 'Model Test',
+      routine_number: '01',
+      exam_date: new Date('2026-08-25T10:00:00.000Z'),
+      is_published: true,
+    },
+  });
+
+  console.log(`✅ Created Package: "${packageItem.title}" and Routine.`);
+
+  // 3. Create sample MCQ Question matching the Question model
+  const mcqQuestion = await prisma.question.create({
+    data: {
+      format: ExamFormat.MCQ,
+      question_text: 'What is the primary source of law in Bangladesh?',
+      correct_answer: 'A',
+      explanation_text: 'The Constitution of Bangladesh is the supreme law of the country.',
+      options: {
+        create: [
+          { option_key: 'A', option_text: 'The Constitution' },
+          { option_key: 'B', option_text: 'Customs' },
+          { option_key: 'C', option_text: 'Ordinances' },
+          { option_key: 'D', option_text: 'By-laws' },
+        ],
+      },
+    },
+  });
+
+  // 4. Create a Question Set and link the question
+  const questionSet = await prisma.questionSet.create({
+    data: {
+      title: 'BJS Preliminary Standard Practice Set',
+      program: PkgProgram.bjs,
+      track: PkgTrack.preliminary,
+      questions: { connect: [{ id: mcqQuestion.id }] },
+    },
+  });
+
+  // 5. Generate 10 Exams with 5, 10, 15 days intervals starting +5 days from today (Aug 20, 2026)
+  const intervals = [5, 10, 15]; // Interval pattern in days
+  let currentDate = new Date();
+
+  for (let i = 1; i <= 10; i++) {
+    const endDate = new Date(currentDate);
+    endDate.setHours(endDate.getHours() + 2); // 2-hour test window
+
+    const exam = await prisma.exam.create({
+      data: {
+        title: `BJS Model Test Exam #${i}`,
+        subjects: ['Constitutional Law', 'Penal Code'],
+        description: `Automated seeded BJS exam number ${i} scheduled for live testing.`,
+        program: PkgProgram.bjs,
+        track: PkgTrack.preliminary,
+        total_marks: 100,
+        pass_mark_percentage: 50,
+        visibility: ExamVisibility.public,
+        is_negative_marking: true,
+        negative_mark_per_question: 1,
+        question_set_id: questionSet.id,
+        package_exams: {
+          create: {
+            package_id: packageItem.id,
+            title: `Schedule for BJS Model Test #${i}`,
+            routine_id: routine.id,
+            live_start_datetime: new Date(currentDate),
+            live_end_datetime: new Date(endDate),
+          },
+        },
+      },
+    });
+
+    console.log(`✨ Created Exam #${i}: "${exam.title}" | Live: ${currentDate.toISOString().split('T')[0]}`);
+
+    // Cycle through intervals (5, 10, 15)
+    const intervalDays = intervals[(i - 1) % intervals.length];
+    currentDate.setDate(currentDate.getDate() + intervalDays);
+  }
+
+  console.log('🎉 Exam seeding completed successfully with all schema fields!');
 }

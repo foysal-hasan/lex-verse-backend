@@ -6,12 +6,13 @@ import { AdminGetExamsQueryDto } from './dto/admin-get-exams-query.dto';
 import { AttachPackagesDto } from './dto/attach-packages.dto';
 import { Storage } from 'src/common/lib/Disk/Storage';
 import { UpdatePackageExamDto } from './dto/update-package-exam.dto';
+import { ExamStatusFilter, UserGetExamsQueryDto } from './dto/user-get-exams-query.dto';
 
 @Injectable()
 export class ExamService {
   constructor(private prisma: PrismaService) { }
 
-async create(dto: CreateExamDto) {
+  async create(dto: CreateExamDto) {
     const { packages, created_by, question_set_id, ...examData } = dto;
 
     if (packages && packages.length > 0) {
@@ -33,14 +34,14 @@ async create(dto: CreateExamDto) {
         package_exams:
           packages && packages.length > 0
             ? {
-                create: packages.map((pkg) => ({
-                  package: { connect: { id: pkg.package_id } },
-                  title: pkg.title,
-                  ...(pkg.routine_id ? { routine: { connect: { id: pkg.routine_id } } } : {}),
-                  live_start_datetime: new Date(pkg.start_datetime),
-                  live_end_datetime: new Date(pkg.end_datetime),
-                })),
-              }
+              create: packages.map((pkg) => ({
+                package: { connect: { id: pkg.package_id } },
+                title: pkg.title,
+                ...(pkg.routine_id ? { routine: { connect: { id: pkg.routine_id } } } : {}),
+                live_start_datetime: new Date(pkg.start_datetime),
+                live_end_datetime: new Date(pkg.end_datetime),
+              })),
+            }
             : undefined,
       },
       include: {
@@ -157,7 +158,7 @@ async create(dto: CreateExamDto) {
     return { id };
   }
 
-async attachPackages(examId: string, dto: AttachPackagesDto) {
+  async attachPackages(examId: string, dto: AttachPackagesDto) {
     await this.findOne(examId);
 
     const packageIds = dto.packages.map((p) => p.package_id);
@@ -263,5 +264,106 @@ async attachPackages(examId: string, dto: AttachPackagesDto) {
       const missingIds = validRoutineIds.filter((id) => !foundIds.has(id));
       throw new NotFoundException(`Routines not found with IDs: ${missingIds.join(', ')}`);
     }
+  }
+
+  // ============================ User Exam Functions ============================
+  async findUserExams(query: UserGetExamsQueryDto) {
+    const { page = 1, limit = 10, search, program, package_id, status } = query;
+    const skip = (page - 1) * limit;
+    const now = new Date();
+
+    const where: Record<string, any> = {
+      deleted_at: null,
+    };
+
+    if (program) {
+      where.program = program;
+    }
+
+    if (package_id) {
+      where.package_exams = {
+        ...(where.package_exams || {}),
+        some: {
+          ...(where.package_exams?.some || {}),
+          package_id: package_id,
+        },
+      };
+    }
+
+    // Status filtering based on live_start_datetime and live_end_datetime in PackageExam
+    if (status) {
+      const packageExamCondition: any = {};
+
+      if (status === ExamStatusFilter.LIVE) {
+        // Happening right now
+        packageExamCondition.live_start_datetime = { lte: now };
+        packageExamCondition.live_end_datetime = { gte: now };
+      } else if (status === ExamStatusFilter.UPCOMING) {
+        // Starting in the future
+        packageExamCondition.live_start_datetime = { gt: now };
+      } else if (status === ExamStatusFilter.ARCHIVED) {
+        // Already ended in the past
+        packageExamCondition.live_end_datetime = { lt: now };
+      }
+
+      where.package_exams = {
+        ...(where.package_exams || {}),
+        some: {
+          ...(where.package_exams?.some || {}),
+          ...packageExamCondition,
+        },
+      };
+    }
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.exam.findMany({
+        where,
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          title: true,
+          subjects: true,
+          description: true,
+          program: true,
+          track: true,
+          total_marks: true,
+          pass_mark_percentage: true,
+          written_exam_question_type_type: true,
+          visibility: true,
+          is_negative_marking: true,
+          negative_mark_per_question: true,
+          is_free_demo: true,
+          created_at: true,
+          package_exams: {
+            select: {
+              package_id: true,
+              title: true,
+              live_start_datetime: true,
+              live_end_datetime: true,
+            },
+          },
+        },
+        orderBy: { created_at: 'desc' },
+      }),
+      this.prisma.exam.count({ where }),
+    ]);
+
+    return {
+      items,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }
