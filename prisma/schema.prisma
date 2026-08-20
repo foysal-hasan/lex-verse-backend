@@ -114,6 +114,8 @@ model User {
 
   created_exams Exam[] @relation("created_exams")
   deleted_exams Exam[] @relation("deleted_exams")
+  exam_attempts ExamAttempt[]
+  graded_submissions WrittenExamResubmissionAccess[] @relation("resubmission_granter")
 
   @@map("users")
 }
@@ -503,43 +505,6 @@ model UserRoadmapProgress {
   @@map("user_roadmap_progress")
 }
 
-model WrittenSubmission {
-  id                      String    @id @default(uuid())
-  user_id                 String
-  quiz_id                 String?
-  question_id             String?
-  file_url                String?
-  file_type               String?   @default("image")
-  answer_text             String?
-  submitted_at            DateTime? @default(now()) @db.Timestamptz
-  status                  String?   @default("pending")
-  score                   Decimal?  @default(0)
-  feedback                String?
-  reviewed_by             String?
-  reviewed_at             DateTime? @db.Timestamptz
-  exam_id                 String?
-  deleted_at              DateTime? @db.Timestamptz
-  feedback_breakdown      Json?
-  resubmission_request_id String?
-  submission_cycle        Int       @default(1) @db.SmallInt
-  prior_evaluations       Json?
-  package_id              String?
-
-  quiz     Quiz?        @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
-  exam     Exam?          @relation(fields: [exam_id], references: [id], onDelete: Cascade)
-  package  Package?     @relation(fields: [package_id], references: [id], onDelete: SetNull)
-  user     User         @relation("UserWrittenSubmissions", fields: [user_id], references: [id], onDelete: Cascade)
-  reviewer User?        @relation("UserReviewedSubmissions", fields: [reviewed_by], references: [id])
-
-  @@index([user_id], map: "idx_written_submissions_user")
-  @@index([quiz_id], map: "idx_written_submissions_quiz")
-  @@index([status], map: "idx_written_submissions_status")
-  @@index([user_id, exam_id, package_id], map: "ws_user_exam_pkg_idx")
-  @@index([exam_id, package_id], map: "ws_exam_pkg_idx")
-  @@index([user_id, quiz_id, package_id], map: "idx_ws_user_quiz_pkg")
-  @@index([resubmission_request_id], map: "idx_ws_resub_req")
-  @@map("written_submissions")
-}
 
 model MentorProfile {
   id                  String   @id @default(uuid())
@@ -667,7 +632,7 @@ model Quiz {
   quiz_retake_requests   QuizRetakeRequest[]
   quiz_allowed_users     QuizAllowedUser[]
   bar_responses          BarResponse[]
-  written_submissions    WrittenSubmission[]
+  // written_submissions    WrittenSubmission[]
   responses              Response[]
   user_score_history     UserScoreHistory[]
   bar_user_score_history BarUserScoreHistory[]
@@ -2151,6 +2116,7 @@ model Exam {
   description String?    @db.Text
   program     PkgProgram
   track       PkgTrack
+  is_allow_answer_change Boolean @default(true)
 
   total_marks Int @default(100)
   pass_mark_percentage Int @default(40)
@@ -2187,6 +2153,7 @@ model Exam {
   written_submissions                WrittenSubmission[]
   written_exam_resubmission_requests WrittenExamResubmissionRequest[]
   package_exams                   PackageExam[]
+  exam_attempts                 ExamAttempt[]
 
   @@index([program], map: "idx_exams_program")
   @@index([deleted_at], map: "exams_deleted_at_idx")
@@ -2273,6 +2240,8 @@ model Question {
 
   // Relations matching your requirement: Question -> QuestionSet
   question_sets              QuestionSet[]
+  
+  user_answers UserAnswer[]
 
   @@index([deleted_at], map: "questions_deleted_at_idx")
   @@map("questions")
@@ -2284,7 +2253,10 @@ model Option {
   question    Question    @relation(fields: [question_id], references: [id], onDelete: Cascade)
   
   option_key  String?     // e.g., "A", "B", "C", "D"
-  option_text String      
+  option_text String  
+
+  // Relations
+  user_answers UserAnswer[]
 
   @@index([question_id])
   @@map("options")
@@ -2308,22 +2280,7 @@ model QuestionSet {
   @@map("question_sets")
 }
 
-model WrittenExamAllowedUser {
-  id         String   @id @default(uuid())
-  exam_id    String
-  user_id    String
-  granted_by String?
-  granted_at DateTime @default(now()) @db.Timestamptz
 
-  exam Exam @relation(fields: [exam_id], references: [id], onDelete: Cascade)
-  user User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@unique([exam_id, user_id], map: "written_exam_allowed_users_exam_id_user_id_key")
-  @@index([user_id], map: "idx_weau_user")
-  @@index([exam_id], map: "idx_weau_exam")
-  @@index([exam_id, user_id], map: "idx_weau_exam_user")
-  @@map("written_exam_allowed_users")
-}
 
 enum ResubmissionProgram {
   bjs
@@ -2339,67 +2296,9 @@ enum ResubmissionStatus {
   revoked
 }
 
-model WrittenExamResubmissionRequest {
-  id            String              @id @default(uuid())
-  user_id       String
-  exam_id       String
-  program       ResubmissionProgram
-  reason        String
-  evidence_url  String?
-  status        ResubmissionStatus  @default(pending)
-  decided_by    String?
-  decided_at    DateTime?           @db.Timestamptz
-  decision_note String?
-  ttl_minutes   Int?
-  created_at    DateTime            @default(now()) @db.Timestamptz
-  updated_at    DateTime            @default(now()) @db.Timestamptz
-  program_type  ResubmissionProgram
-  user_agent    String?
-  admin_note    String?
-  reviewed_by   String?
-  reviewed_at   DateTime?           @db.Timestamptz
-  evidence_path String?
 
-  user User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  exam Exam @relation(fields: [exam_id], references: [id], onDelete: Cascade)
 
-  // relations
-  resubmission_accesses WrittenExamResubmissionAccess[]
 
-  @@unique([user_id, exam_id], map: "uq_wer_requests_one_pending")
-  @@index([user_id], map: "idx_wer_requests_user")
-  @@index([exam_id], map: "idx_wer_requests_exam")
-  @@index([status], map: "idx_wer_requests_status")
-  @@index([program], map: "idx_wer_requests_program")
-  @@index([user_id, exam_id], map: "idx_wer_requests_user_exam")
-  @@map("written_exam_resubmission_requests")
-}
-
-model WrittenExamResubmissionAccess {
-  id               String              @id @default(uuid())
-  request_id       String
-  user_id          String
-  exam_id          String
-  program          ResubmissionProgram
-  granted_by       String
-  granted_at       DateTime            @default(now()) @db.Timestamptz
-  expires_at       DateTime            @db.Timestamptz
-  consumed_at      DateTime?           @db.Timestamptz
-  revoked_at       DateTime?           @db.Timestamptz
-  revoked_by       String?
-  program_type     ResubmissionProgram
-  upload_count     Int                 @default(0)
-  max_uploads      Int                 @default(1)
-  last_uploaded_at DateTime?           @db.Timestamptz
-
-  request WrittenExamResubmissionRequest @relation(fields: [request_id], references: [id], onDelete: Cascade)
-  user    User                           @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  exam    Exam                           @relation(fields: [exam_id], references: [id], onDelete: Cascade)
-
-  @@index([user_id, exam_id], map: "idx_wer_access_user_exam")
-  @@index([user_id, exam_id, expires_at], map: "idx_wer_access_active")
-  @@map("written_exam_resubmission_access")
-}
 
 model BarWrittenSubmission {
   id                      String    @id @default(uuid())
@@ -2597,3 +2496,251 @@ model FileUpload {
   @@index([status, created_at], map: "idx_file_upload_status_created")
   @@map("file_uploads")
 }
+
+
+// model WrittenSubmission {
+//   id                      String    @id @default(uuid())
+//   user_id                 String
+//   quiz_id                 String?
+//   question_id             String?
+//   file_url                String?
+//   file_type               String?   @default("image")
+//   answer_text             String?
+//   submitted_at            DateTime? @default(now()) @db.Timestamptz
+//   status                  String?   @default("pending")
+//   score                   Decimal?  @default(0)
+//   feedback                String?
+//   reviewed_by             String?
+//   reviewed_at             DateTime? @db.Timestamptz
+//   exam_id                 String?
+//   deleted_at              DateTime? @db.Timestamptz
+//   feedback_breakdown      Json?
+//   resubmission_request_id String?
+//   submission_cycle        Int       @default(1) @db.SmallInt
+//   prior_evaluations       Json?
+//   package_id              String?
+
+//   quiz     Quiz?        @relation(fields: [quiz_id], references: [id], onDelete: Cascade)
+//   exam     Exam?          @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+//   package  Package?     @relation(fields: [package_id], references: [id], onDelete: SetNull)
+//   user     User         @relation("UserWrittenSubmissions", fields: [user_id], references: [id], onDelete: Cascade)
+//   reviewer User?        @relation("UserReviewedSubmissions", fields: [reviewed_by], references: [id])
+
+//   @@index([user_id], map: "idx_written_submissions_user")
+//   @@index([quiz_id], map: "idx_written_submissions_quiz")
+//   @@index([status], map: "idx_written_submissions_status")
+//   @@index([user_id, exam_id, package_id], map: "ws_user_exam_pkg_idx")
+//   @@index([exam_id, package_id], map: "ws_exam_pkg_idx")
+//   @@index([user_id, quiz_id, package_id], map: "idx_ws_user_quiz_pkg")
+//   @@index([resubmission_request_id], map: "idx_ws_resub_req")
+//   @@map("written_submissions")
+// }
+
+
+// model WrittenExamResubmissionRequest {
+//   id            String              @id @default(uuid())
+//   user_id       String
+//   exam_id       String
+//   program       ResubmissionProgram
+//   reason        String
+//   evidence_url  String?
+//   status        ResubmissionStatus  @default(pending)
+//   decided_by    String?
+//   decided_at    DateTime?           @db.Timestamptz
+//   decision_note String?
+//   ttl_minutes   Int?
+//   created_at    DateTime            @default(now()) @db.Timestamptz
+//   updated_at    DateTime            @default(now()) @db.Timestamptz
+//   program_type  ResubmissionProgram
+//   user_agent    String?
+//   admin_note    String?
+//   reviewed_by   String?
+//   reviewed_at   DateTime?           @db.Timestamptz
+//   evidence_path String?
+
+//   user User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+//   exam Exam @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+
+//   // relations
+//   resubmission_accesses WrittenExamResubmissionAccess[]
+
+//   @@unique([user_id, exam_id], map: "uq_wer_requests_one_pending")
+//   @@index([user_id], map: "idx_wer_requests_user")
+//   @@index([exam_id], map: "idx_wer_requests_exam")
+//   @@index([status], map: "idx_wer_requests_status")
+//   @@index([program], map: "idx_wer_requests_program")
+//   @@index([user_id, exam_id], map: "idx_wer_requests_user_exam")
+//   @@map("written_exam_resubmission_requests")
+// }
+
+
+
+// model WrittenExamResubmissionAccess {
+//   id               String              @id @default(uuid())
+//   request_id       String
+//   user_id          String
+//   exam_id          String
+//   program          ResubmissionProgram
+//   granted_by       String
+//   granted_at       DateTime            @default(now()) @db.Timestamptz
+//   expires_at       DateTime            @db.Timestamptz
+//   consumed_at      DateTime?           @db.Timestamptz
+//   revoked_at       DateTime?           @db.Timestamptz
+//   revoked_by       String?
+//   program_type     ResubmissionProgram
+//   upload_count     Int                 @default(0)
+//   max_uploads      Int                 @default(1)
+//   last_uploaded_at DateTime?           @db.Timestamptz
+
+//   request WrittenExamResubmissionRequest @relation(fields: [request_id], references: [id], onDelete: Cascade)
+//   user    User                           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+//   exam    Exam                           @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+
+//   @@index([user_id, exam_id], map: "idx_wer_access_user_exam")
+//   @@index([user_id, exam_id, expires_at], map: "idx_wer_access_active")
+//   @@map("written_exam_resubmission_access")
+// }
+
+// model WrittenExamAllowedUser {
+//   id         String   @id @default(uuid())
+//   exam_id    String
+//   user_id    String
+//   granted_by String?
+//   granted_at DateTime @default(now()) @db.Timestamptz
+
+//   exam Exam @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+//   user User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+//   @@unique([exam_id, user_id], map: "written_exam_allowed_users_exam_id_user_id_key")
+//   @@index([user_id], map: "idx_weau_user")
+//   @@index([exam_id], map: "idx_weau_exam")
+//   @@index([exam_id, user_id], map: "idx_weau_exam_user")
+//   @@map("written_exam_allowed_users")
+// }
+
+
+// ==================== ENUMS ====================
+
+enum AttemptStatus {
+  in_progress
+  submitted
+  auto_submitted
+}
+
+enum WrittenSubmissionStatus {
+  pending_evaluation
+  evaluated
+  resubmission_requested
+}
+
+// ==================== MCQ ATTEMPTS & ANSWERS ====================
+
+model ExamAttempt {
+  id           String        @id @default(uuid())
+  user_id      String
+  exam_id      String
+  status       AttemptStatus @default(in_progress)
+  started_at   DateTime      @default(now()) @db.Timestamptz
+  expires_at   DateTime      @db.Timestamptz
+  submitted_at DateTime?     @db.Timestamptz
+
+  exam         Exam          @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  answers      UserAnswer[]
+  written_submission WrittenSubmission?
+
+  @@index([user_id], map: "idx_exam_attempts_user_id")
+  @@index([exam_id], map: "idx_exam_attempts_exam_id")
+  @@map("exam_attempts")
+}
+
+model UserAnswer {
+  id                 String      @id @default(uuid())
+  attempt_id         String
+  question_id        String
+  selected_option_id String      // Relational ID pointing to the Option model
+
+  attempt            ExamAttempt @relation(fields: [attempt_id], references: [id], onDelete: Cascade)
+  question           Question    @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  selected_option    Option      @relation(fields: [selected_option_id], references: [id], onDelete: Cascade)
+  created_at         DateTime    @default(now()) @db.Timestamptz
+
+  // 🔒 Natively enforces that a question can only have one saved answer per attempt
+  @@unique([attempt_id, question_id])
+  @@map("user_answers")
+}
+
+// ==================== WRITTEN EXAM SUBMISSIONS & WORKFLOWS ====================
+
+model WrittenSubmission {
+  id             String                  @id @default(uuid())
+  exam_id        String
+  package_id     String
+  user_id        String
+  attempt_id     String                  @unique // 🔒 1-to-1 link to the active attempt session
+  
+  file_path      String?                 
+  file_mime_type String?
+  text_answer    String?                 @db.Text
+  
+  status         WrittenSubmissionStatus @default(pending_evaluation)
+  marks_obtained Decimal?
+  feedback       String?                 @db.Text
+  
+  evaluated_by   String?
+  submitted_at   DateTime                @default(now()) @db.Timestamptz
+  updated_at     DateTime                @updatedAt @db.Timestamptz
+
+  exam           Exam                    @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  package        Package                 @relation(fields: [package_id], references: [id], onDelete: Cascade)
+  user           User                    @relation(name: "UserWrittenSubmissions", fields: [user_id], references: [id], onDelete: Cascade)
+  evaluator      User?                   @relation(name: "UserReviewedSubmissions", fields: [evaluated_by], references: [id], onDelete: SetNull)
+  attempt        ExamAttempt             @relation(fields: [attempt_id], references: [id], onDelete: Cascade)
+
+  @@index([exam_id], map: "idx_written_submissions_exam_id")
+  @@index([user_id], map: "idx_written_submissions_user_id")
+  @@map("written_submissions")
+}
+
+model WrittenExamResubmissionRequest {
+  id           String   @id @default(uuid())
+  exam_id      String
+  user_id      String
+  reason       String   @db.Text
+  is_approved  Boolean  @default(false)
+  created_at   DateTime @default(now()) @db.Timestamptz
+
+  exam         Exam     @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("written_exam_resubmission_requests")
+}
+
+model WrittenExamResubmissionAccess {
+  id         String   @id @default(uuid())
+  exam_id    String
+  user_id    String
+  granted_by String?
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  exam       Exam     @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  granter    User?    @relation(name: "resubmission_granter", fields: [granted_by], references: [id], onDelete: SetNull)
+
+  @@map("written_exam_resubmission_accesses")
+}
+
+model WrittenExamAllowedUser {
+  id       String @id @default(uuid())
+  exam_id  String
+  user_id  String
+
+  exam     Exam   @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([exam_id, user_id])
+  @@map("written_exam_allowed_users")
+}
+
+
+
