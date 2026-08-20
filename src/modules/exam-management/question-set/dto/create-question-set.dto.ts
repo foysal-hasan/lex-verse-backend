@@ -1,63 +1,41 @@
-import { 
-  IsString, 
-  IsOptional, 
-  IsEnum, 
-  IsArray, 
-  ValidateNested, 
-  IsUUID 
-} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PkgProgram, PkgTrack } from 'src/generated/prisma/enums';
 import { CreateQuestionDto } from '../../question/dto/create-question.dto';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
 
 export class CreateQuestionSetDto {
-  @ApiProperty({ 
-    description: 'The title of the question set', 
-    example: 'Advanced Mathematics Midterm Set A' 
-  })
+  @ApiProperty({ example: 'BCS Preliminary Model Test Set 1' })
   @IsString()
+  @IsNotEmpty()
   title: string;
 
-  @ApiProperty({ 
-    enum: PkgProgram, 
-    description: 'The program category for the question set' 
-  })
+  @ApiProperty({ enum: PkgProgram, example: PkgProgram.bar })
   @IsEnum(PkgProgram)
+  @IsNotEmpty()
   program: PkgProgram;
 
-  @ApiProperty({ 
-    enum: PkgTrack, 
-    description: 'The track category for the question set' 
-  })
+  @ApiProperty({ enum: PkgTrack, example: PkgTrack.preliminary })
   @IsEnum(PkgTrack)
+  @IsNotEmpty()
   track: PkgTrack;
 
-  @ApiPropertyOptional({ 
-    description: 'Optional description or instructions for the question set',
-    example: 'Answer all questions. Calculators are allowed.' 
-  })
-  @IsOptional()
+  @ApiPropertyOptional({ example: 'Complete set covering Bangladesh Affairs.' })
   @IsString()
+  @IsOptional()
   description?: string;
 
-  @ApiPropertyOptional({ 
-    type: [String], 
-    description: 'List of existing question IDs to connect to this question set',
-    example: ['123e4567-e89b-12d3-a456-426614174000']
-  })
-  @IsOptional()
+  @ApiPropertyOptional({ type: [String], description: 'Existing question IDs to connect', example: ['uuid-1', 'uuid-2'] })
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsString({ each: true })
+  @IsOptional()
   question_ids?: string[];
 
-  @ApiPropertyOptional({ 
-    type: [CreateQuestionDto], 
-    description: 'List of new questions to be created and linked to this question set' 
-  })
-  @IsOptional()
+  @ApiPropertyOptional({ type: [CreateQuestionDto], description: 'New questions to create and attach' })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateQuestionDto)
-  questions?: CreateQuestionDto[];
+  @IsOptional()
+  new_questions?: CreateQuestionDto[];
 }

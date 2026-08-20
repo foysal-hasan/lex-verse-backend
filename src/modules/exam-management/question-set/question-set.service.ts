@@ -1,40 +1,50 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PkgProgram, PkgTrack } from 'src/generated/prisma/enums';
-import { Decimal } from 'src/generated/prisma/internal/prismaNamespace';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateQuestionSetDto } from './dto/create-question-set.dto';
-import { AdminGetQuestionSetsQueryDto } from './dto/admin-get-question-sets-query.dto';
 import { UpdateQuestionSetDto } from './dto/update-question-set.dto';
+import { AdminGetQuestionSetsQueryDto } from './dto/admin-get-question-sets-query.dto';
 
 @Injectable()
 export class QuestionSetService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) { }
 
-  async createWithQuestions(dto: CreateQuestionSetDto) {
-    const { question_ids, questions, ...setData } = dto;
+  async createWithQuestions(dto: CreateQuestionSetDto, userId?: string) {
+    const { question_ids, new_questions, ...rest } = dto;
 
-    return await this.prisma.questionSet.create({
+    const questionOperations: any = {};
+
+    if (question_ids && question_ids.length > 0) {
+      questionOperations.connect = question_ids.map((id) => ({ id }));
+    }
+
+    if (new_questions && new_questions.length > 0) {
+      questionOperations.create = new_questions.map((q) => {
+        const { options, ...qRest } = q;
+        return {
+          ...qRest,
+          created_by: userId,
+          options:
+            options && options.length > 0
+              ? {
+                create: options.map((opt) => ({
+                  option_key: opt.option_key,
+                  option_text: opt.option_text,
+                })),
+              }
+              : undefined,
+        };
+      });
+    }
+
+    return this.prisma.questionSet.create({
       data: {
-        ...setData,
-        exam_questions: {
-          ...(question_ids && question_ids.length > 0
-            ? { connect: question_ids.map((id) => ({ id })) }
-            : {}),
-          ...(questions && questions.length > 0
-            ? {
-              create: questions.map((q) => ({
-                question_text: q.question_text,
-                question_file_path: q.question_file_path,
-                question_file_mime_type: q.question_file_mime_type,
-                marks: q.marks ? new Decimal(q.marks) : new Decimal(10),
-                guidelines: q.guidelines,
-              })),
-            }
-            : {}),
-        },
+        ...rest,
+        questions: Object.keys(questionOperations).length > 0 ? questionOperations : undefined,
       },
       include: {
-        exam_questions: true,
+        questions: {
+          include: { options: true },
+        },
       },
     });
   }
@@ -43,16 +53,9 @@ export class QuestionSetService {
     const { page = 1, limit = 10, search, program, track } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
-
-    if (program) {
-      where.program = program;
-    }
-
-    if (track) {
-      where.track = track;
-    }
-
+    const where: Record<string, any> = {};
+    if (program) where.program = program;
+    if (track) where.track = track;
     if (search) {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
@@ -65,22 +68,17 @@ export class QuestionSetService {
         where,
         skip,
         take: limit,
-        include: {
-          _count: true,
-        },
         orderBy: { created_at: 'desc' },
+        include: {
+          _count: { select: { questions: true } },
+        },
       }),
       this.prisma.questionSet.count({ where }),
     ]);
 
     return {
       items,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      meta: { total, page, limit, total_pages: Math.ceil(total / limit) },
     };
   }
 
@@ -88,69 +86,54 @@ export class QuestionSetService {
     const questionSet = await this.prisma.questionSet.findUnique({
       where: { id },
       include: {
-        exam_questions: true,
-        exams: true,
+        questions: {
+          where: { deleted_at: null },
+          include: { options: true },
+        },
       },
     });
 
     if (!questionSet) {
-      throw new NotFoundException('Question Set not found');
+      throw new NotFoundException('Question set not found');
     }
+
     return questionSet;
   }
 
   async update(id: string, dto: UpdateQuestionSetDto) {
     await this.findOne(id);
 
-    const { questions, ...setData } = dto;
-
-    const questionUpdates: any = {};
-
-    if (questions && questions.length > 0) {
-      questionUpdates.exam_questions = {
-        create: questions.map((q) => ({
-          question_text: q.question_text,
-          question_file_path: q.question_file_path,
-          question_file_mime_type: q.question_file_mime_type,
-          marks: q.marks ? new Decimal(q.marks) : new Decimal(10),
-          guidelines: q.guidelines,
-        })),
-      };
-    }
-
-    return await this.prisma.questionSet.update({
+    return this.prisma.questionSet.update({
       where: { id },
-      data: {
-        ...setData,
-        ...questionUpdates,
-      },
+      data: dto, // question_ids are omitted, updates only text fields
       include: {
-        exam_questions: true,
+        questions: {
+          include: { options: true },
+        },
       },
     });
   }
 
   async remove(id: string) {
     await this.findOne(id);
-    await this.prisma.questionSet.delete({
-      where: { id },
-    });
-
-    return { id }
+    await this.prisma.questionSet.delete({ where: { id } });
+    return { id };
   }
 
   async attachQuestions(id: string, questionIds: string[]) {
     await this.findOne(id);
 
-    return await this.prisma.questionSet.update({
+    return this.prisma.questionSet.update({
       where: { id },
       data: {
-        exam_questions: {
-          connect: questionIds.map((qid) => ({ id: qid })),
+        questions: {
+          connect: questionIds.map((qId) => ({ id: qId })),
         },
       },
       include: {
-        exam_questions: true,
+        questions: {
+          include: { options: true },
+        },
       },
     });
   }
@@ -158,15 +141,17 @@ export class QuestionSetService {
   async detachQuestions(id: string, questionIds: string[]) {
     await this.findOne(id);
 
-    return await this.prisma.questionSet.update({
+    return this.prisma.questionSet.update({
       where: { id },
       data: {
-        exam_questions: {
-          disconnect: questionIds.map((qid) => ({ id: qid })),
+        questions: {
+          disconnect: questionIds.map((qId) => ({ id: qId })),
         },
       },
       include: {
-        exam_questions: true,
+        questions: {
+          include: { options: true },
+        },
       },
     });
   }
