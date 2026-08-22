@@ -42,10 +42,9 @@ export class ExamSubmissionController {
     async startExam(
         @Req() req: Request,
         @Param('packageId') packageId: string,
-        @Param('examId') examId: string,
-        @ClientTime() referenceTime: Date,
+        @Param('examId') examId: string
     ) {
-        return await this.submissionService.startOrResumeExam(req.user.userId, examId, packageId, referenceTime);
+        return await this.submissionService.startOrResumeExam(req.user.userId, examId, packageId);
     }
 
     @Get('package/:packageId/exams/:examId/details-with-answers')
@@ -59,25 +58,33 @@ export class ExamSubmissionController {
         return await this.submissionService.getExamDetailsWithAnswers(req.user.userId, packageId, examId, referenceTime);
     }
 
-    @Get('package/:packageId/exams/:examId/attempts/paginated')
-    @ApiOperation({ summary: 'Get paginated list of user attempts with statistics (Right, Wrong, Unanswered)' })
+    @Get('package/:packageId/attempts/paginated')
+    @ApiOperation({ summary: 'Get paginated list of attempts for a package (optional query filter: examId)' })
     async getAttemptsWithStats(
         @Req() req: Request,
         @Param('packageId') packageId: string,
-        @Param('examId') examId: string,
         @Query() query: UserExamAttemptsQueryDto,
     ) {
-        return await this.submissionService.getAttemptsWithStats(req.user.userId, packageId, examId, query);
+        return await this.submissionService.getAttemptsWithStats(req.user.userId, packageId, query);
     }
 
-    @Get('package/:packageId/exams/:examId/statistics/aggregate')
-    @ApiOperation({ summary: 'Get aggregated overall statistics across all attempts for this exam/package' })
+    @Get('package/:packageId/statistics/aggregate')
+    @ApiOperation({ summary: 'Get aggregated stats across all attempts in a package (optional query filter: examId)' })
     async getAggregatedStats(
         @Req() req: Request,
         @Param('packageId') packageId: string,
-        @Param('examId') examId: string,
+        @Query() query: UserExamAttemptsQueryDto,
     ) {
-        return await this.submissionService.getAggregatedStats(req.user.userId, packageId, examId);
+        return await this.submissionService.getAggregatedStats(req.user.userId, packageId, query.examId);
+    }
+
+    @Get('attempts/:attemptId')
+    @ApiOperation({ summary: 'Get full details of a specific exam attempt' })
+    async getAttemptDetails(
+        @Req() req: Request,
+        @Param('attemptId') attemptId: string,
+    ) {
+        return await this.submissionService.getAttemptDetails(req.user.userId, attemptId);
     }
 
     @Get('attempts/:attemptId/questions')
