@@ -31,19 +31,17 @@ export class CreateExamDto {
   @IsNotEmpty()
   track: PkgTrack;
 
-  @ApiPropertyOptional({ example: 100, default: 100 })
+  @ApiProperty({ example: 100 })
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  @IsOptional()
-  total_marks?: number;
+  total_marks: number;
 
-  @ApiPropertyOptional({ example: 40, default: 40 })
+  @ApiProperty({ example: 40 })
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  @IsOptional()
-  pass_mark_percentage?: number;
+  pass_mark_percentage: number;
 
   // Written Specific Fields
   @ApiPropertyOptional({ enum: WrittenExamQuestionType, example: WrittenExamQuestionType.multiple_questions })
@@ -94,7 +92,13 @@ export class CreateExamDto {
   @IsOptional()
   per_question_time_limit?: number;
 
-  @ApiPropertyOptional({ description: 'Link to a Question Set ID', example: 'uuid-123456' })
+  @ApiProperty({ example: 30 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  duration_minutes: number;
+
+  @ApiPropertyOptional({ description: 'Link to a Question Set ID', example: '3ba744e8-1939-421b-9bd2-3c1173c681fe' })
   @IsString()
   @IsOptional()
   question_set_id?: string;

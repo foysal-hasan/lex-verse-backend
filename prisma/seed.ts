@@ -361,6 +361,7 @@ export async function seedExams() {
         track: PkgTrack.preliminary,
         total_marks: 100,
         pass_mark_percentage: 50,
+        duration_minutes: 30,
         visibility: ExamVisibility.public,
         is_negative_marking: true,
         negative_mark_per_question: 1,

@@ -42,7 +42,7 @@ export class PackageService {
       }),
     };
 
-    const [data, total] = await Promise.all([
+    const [items, total] = await Promise.all([
       this.prisma.package.findMany({
         where,
         skip,
@@ -53,7 +53,7 @@ export class PackageService {
     ]);
 
     return {
-      data,
+      items,
       meta: {
         total,
         page,

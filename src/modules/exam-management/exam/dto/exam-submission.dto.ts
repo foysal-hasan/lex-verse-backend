@@ -8,7 +8,7 @@ export class SubmitAnswerDto {
   question_id: string;
 
   @ApiProperty({ description: 'Selected Option ID', example: 'uuid-string' })
-  @IsUUID()
+//   @IsUUID()
   @IsNotEmpty()
   selected_option_id: string;
 }

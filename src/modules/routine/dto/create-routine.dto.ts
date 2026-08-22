@@ -24,7 +24,7 @@ export class CreateRoutineDto {
   @IsOptional()
   routine_number?: string;
 
-  @ApiPropertyOptional({ example: '2026-06-15T10:00:00.000Z' })
+  @ApiPropertyOptional({ example: new Date().toISOString() })
   @IsDateString()
   @IsOptional()
   exam_date?: string;
@@ -60,7 +60,7 @@ export class CreateRoutineDto {
   @IsOptional()
   file_path?: string;
 
-  @ApiPropertyOptional({ default: false })
+  @ApiPropertyOptional({ default: true })
   @IsBoolean()
   @IsOptional()
   is_published?: boolean;
