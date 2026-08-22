@@ -116,6 +116,7 @@ model User {
   deleted_exams      Exam[]                          @relation("deleted_exams")
   exam_attempts      ExamAttempt[]
   graded_submissions WrittenExamResubmissionAccess[] @relation("resubmission_granter")
+  exam_results    ExamResult[]
 
   @@map("users")
 }
@@ -248,6 +249,7 @@ model Package {
   routines                Routine[]
   package_exams           PackageExam[]
   exam_attempts         ExamAttempt[]
+  exam_results          ExamResult[]
 
   @@map("packages")
 }
@@ -2148,6 +2150,7 @@ model Exam {
   written_exam_resubmission_requests WrittenExamResubmissionRequest[]
   package_exams                      PackageExam[]
   exam_attempts                      ExamAttempt[]
+  exam_results                       ExamResult[]
 
   @@index([program], map: "idx_exams_program")
   @@index([deleted_at], map: "exams_deleted_at_idx")
@@ -2270,6 +2273,41 @@ model QuestionSet {
   exams     Exam[]
 
   @@map("question_sets")
+}
+
+
+model ExamResult {
+  id                String       @id @default(uuid())
+  attempt_id        String       @unique
+  user_id           String
+  exam_id           String
+  package_id        String
+  
+  exam_format       ExamFormat   
+  total_marks       Float        @default(0)
+  obtained_marks    Float?       
+  is_graded         Boolean      @default(true) 
+  percentage        Float?       
+
+  // MCQ Specific Metrics (Nullable for Written Exams)
+  total_questions   Int?
+  right_count       Int?
+  wrong_count       Int?
+  unanswered_count  Int?
+
+  // Written Specific Metrics
+  teacher_feedback  String?      @db.Text
+
+  submitted_at      DateTime     @default(now()) @db.Timestamptz
+
+  attempt           ExamAttempt  @relation(fields: [attempt_id], references: [id], onDelete: Cascade)
+  user              User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  exam              Exam         @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  package           Package      @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, package_id], map: "idx_exam_results_user_package")
+  @@index([exam_id], map: "idx_exam_results_exam")
+  @@map("exam_results")
 }
 
 enum ResubmissionProgram {
@@ -2637,6 +2675,7 @@ model ExamAttempt {
   package      Package       @relation(fields: [package_id], references: [id], onDelete: Cascade)
   answers            UserAnswer[]
   written_submission WrittenSubmission?
+  exam_result     ExamResult?
 
 
   @@index([user_id], map: "idx_exam_attempts_user_id")

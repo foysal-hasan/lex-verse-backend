@@ -115,16 +115,14 @@ export class ExamSubmissionService {
             },
         });
 
-        const attemptMode = (isGlobalArchive || previousSubmissionsCount > 0) ? 'archived' : 'live';
+        const attemptMode = (isGlobalArchive || previousSubmissionsCount > 0) ? AttemptMode.archived : AttemptMode.live;
 
-        // 2. আগে থেকে কোনো active attempt আছে কিনা চেক করা
         let attempt = await this.prisma.examAttempt.findFirst({
             where: { user_id: userId, exam_id: examId, package_id: packageId, status: 'in_progress' },
             include: { answers: true },
         });
 
         if (attempt) {
-            // Epoch millisecond
             if (now.getTime() > new Date(attempt.expires_at).getTime()) {
                 await this.finalizeMcqAttempt(attempt.id, 'auto_submitted');
                 throw new BadRequestException('Exam time has expired.');
@@ -160,6 +158,7 @@ export class ExamSubmissionService {
 
         return { message: 'Exam started successfully', attempt };
     }
+
     async getAttemptQuestions(userId: string, attemptId: string) {
         const attempt = await this.prisma.examAttempt.findUnique({
             where: { id: attemptId },
@@ -192,14 +191,10 @@ export class ExamSubmissionService {
             throw new NotFoundException('Attempt not found');
         }
 
-
-        return {
-            attempt
-        };
+        return { attempt };
     }
 
     async getAttemptReview(userId: string, attemptId: string, referenceTime: Date) {
-        // 1. Fetch the attempt, exam questions, and user answers
         const attempt = await this.prisma.examAttempt.findUnique({
             where: { id: attemptId },
             include: {
@@ -224,7 +219,6 @@ export class ExamSubmissionService {
             throw new NotFoundException('Attempt not found');
         }
 
-        // 2. Directly query the specific PackageExam using the attempt's exam_id and package_id
         const packageExam = await this.prisma.packageExam.findFirst({
             where: {
                 exam_id: attempt.exam_id,
@@ -232,7 +226,6 @@ export class ExamSubmissionService {
             },
         });
 
-        // 3. Check if the exam is in archive mode (Global live end passed OR attempt mode is archived)
         const isGlobalArchive = packageExam ? referenceTime > packageExam.live_end_datetime : false;
         const isArchiveAttempt = attempt.mode === 'archived';
 
@@ -242,7 +235,7 @@ export class ExamSubmissionService {
 
         return {
             attempt,
-            questions: attempt.exam.question_sets?.questions || [], // Includes correct answers and explanations
+            questions: attempt.exam.question_sets?.questions || [],
         };
     }
 
@@ -256,7 +249,6 @@ export class ExamSubmissionService {
 
         if (!attempt || attempt.user_id !== userId) throw new NotFoundException('Attempt not found');
         if (attempt.status !== 'in_progress') throw new BadRequestException('Attempt is closed');
-
 
         const currentTime = new Date();
         const currentEpoch = currentTime.getTime();
@@ -307,7 +299,6 @@ export class ExamSubmissionService {
         for (const question of questions) {
             const userAnswer = attempt.answers.find((a) => a.question_id === question.id);
             if (userAnswer) {
-                // Evaluate correct_answer == option_text
                 if (userAnswer.selected_option.option_text.trim() === question.correct_answer?.trim()) {
                     correctCount++;
                 } else {
@@ -316,10 +307,32 @@ export class ExamSubmissionService {
             }
         }
 
-        const updatedAttempt = await this.prisma.examAttempt.update({
-            where: { id: attemptId },
-            data: { status, submitted_at: new Date() },
-        });
+        const score = correctCount;
+
+        // Transaction to update attempt and upsert/create corresponding ExamResult summary
+const [updatedAttempt] = await this.prisma.$transaction([
+    this.prisma.examAttempt.update({
+        where: { id: attemptId },
+        data: { status, submitted_at: new Date() },
+    }),
+    this.prisma.examResult.upsert({
+        where: { attempt_id: attemptId },
+        update: {
+            obtained_marks: score,
+            right_count: correctCount,
+            wrong_count: wrongCount,
+        },
+        create: {
+            attempt: { connect: { id: attemptId } },
+            exam: { connect: { id: attempt.exam_id } },
+            user: { connect: { id: attempt.user_id } },
+            package: { connect: { id: attempt.package_id } },
+            obtained_marks: score,
+            right_count: correctCount,
+            wrong_count: wrongCount,
+        },
+    }),
+]);
 
         return {
             message: 'Exam submitted successfully',
@@ -327,7 +340,7 @@ export class ExamSubmissionService {
                 totalQuestions: questions.length,
                 correctCount,
                 wrongCount,
-                score: correctCount,
+                score,
             },
             attempt: updatedAttempt,
         };
@@ -363,7 +376,6 @@ export class ExamSubmissionService {
 
     // ==================== WRITTEN EXAM SUBMISSIONS ====================
 
-
     async submitWrittenExam(userId: string, dto: SubmitWrittenExamDto) {
         const attempt = await this.prisma.examAttempt.findUnique({ where: { id: dto.attempt_id } });
         if (!attempt || attempt.user_id !== userId) throw new NotFoundException('Attempt not found');
@@ -398,9 +410,7 @@ export class ExamSubmissionService {
         });
     }
 
-
     async getExamDetailsWithAnswers(userId: string, packageId: string, examId: string, referenceTime: Date) {
-        // 1. Fetch exam with package timeline and questions/options
         const exam = await this.prisma.exam.findUnique({
             where: { id: examId },
             include: {
@@ -419,10 +429,8 @@ export class ExamSubmissionService {
         const packageExam = exam.package_exams[0];
         if (!packageExam) throw new NotFoundException('Exam is not linked to this package');
 
-        // 2. Check if global archive (live end date is over)
         const isGlobalArchive = referenceTime > packageExam.live_end_datetime;
 
-        // 3. Check if user-specific archive (user has already submitted at least once)
         const previousSubmissionsCount = await this.prisma.examAttempt.count({
             where: {
                 user_id: userId,
@@ -432,7 +440,6 @@ export class ExamSubmissionService {
             },
         });
 
-        // 4. Archive Mode Condition: Must be global archive OR user has prior submissions
         const isArchiveMode = isGlobalArchive || previousSubmissionsCount > 0;
 
         if (!isArchiveMode) {
@@ -444,13 +451,12 @@ export class ExamSubmissionService {
         return exam;
     }
 
-    // 1. Paginated Attempts with optional examId filter
+// 1. Paginated Attempts using ExamResult table
     async getAttemptsWithStats(userId: string, packageId: string, query: UserExamAttemptsQueryDto) {
         const page = query.page || 1;
         const limit = query.limit || 10;
         const skip = (page - 1) * limit;
 
-        // Build dynamic where filter
         const whereCondition: Prisma.ExamAttemptWhereInput = {
             user_id: userId,
             package_id: packageId,
@@ -464,14 +470,15 @@ export class ExamSubmissionService {
             this.prisma.examAttempt.findMany({
                 where: whereCondition,
                 include: {
-                    answers: { include: { selected_option: true } },
+                    answers: true,
                     exam: {
                         include: {
                             question_sets: {
-                                include: { questions: { include: { options: true } } },
+                                include: { questions: { select: { id: true } } },
                             },
                         },
                     },
+                    exam_result: true, // Fetching pre-calculated results
                 },
                 skip,
                 take: limit,
@@ -483,24 +490,11 @@ export class ExamSubmissionService {
         ]);
 
         const data = attempts.map((attempt) => {
-            const questions = attempt.exam.question_sets?.questions || [];
-            const totalQuestions = questions.length;
-            let right = 0;
-            let wrong = 0;
-
-            for (const q of questions) {
-                const ans = attempt.answers.find((a) => a.question_id === q.id);
-                if (ans && ans.selected_option) {
-                    if (ans.selected_option.option_text.trim() === q.correct_answer?.trim()) {
-                        right++;
-                    } else {
-                        wrong++;
-                    }
-                }
-            }
-
+            const totalQuestions = attempt.exam.question_sets?.questions?.length || 0;
+            const right = attempt.exam_result?.right_count || 0;
+            const wrong = attempt.exam_result?.wrong_count || 0;
             const answeredCount = attempt.answers.length;
-            const unanswered = totalQuestions - answeredCount;
+            const unanswered = Math.max(0, totalQuestions - answeredCount);
 
             return {
                 ...attempt,
@@ -524,66 +518,36 @@ export class ExamSubmissionService {
         };
     }
 
-    // 2. Aggregated Statistics with optional examId filter
+    // 2. Aggregated Statistics using Prisma Aggregate on ExamResult
     async getAggregatedStats(userId: string, packageId: string, examId?: string) {
-        const whereCondition: Prisma.ExamAttemptWhereInput = {
+        const whereCondition: Prisma.ExamResultWhereInput = {
             user_id: userId,
             package_id: packageId,
-            status: { in: ['submitted', 'auto_submitted'] },
         };
 
         if (examId) {
             whereCondition.exam_id = examId;
         }
 
-        const attempts = await this.prisma.examAttempt.findMany({
+        // Use Prisma's native aggregate function on ExamResult table for high performance
+        const aggregateResult = await this.prisma.examResult.aggregate({
             where: whereCondition,
-            include: {
-                answers: { include: { selected_option: true } },
-                exam: {
-                    include: {
-                        question_sets: {
-                            include: { questions: { include: { options: true } } },
-                        },
-                    },
-                },
+            _sum: {
+                right_count: true,
+                wrong_count: true,
+            },
+            _count: {
+                attempt_id: true,
             },
         });
-
-        let totalRight = 0;
-        let totalWrong = 0;
-        let totalUnanswered = 0;
-
-        for (const attempt of attempts) {
-            const questions = attempt.exam.question_sets?.questions || [];
-            const totalQuestions = questions.length;
-            let right = 0;
-            let wrong = 0;
-
-            for (const q of questions) {
-                const ans = attempt.answers.find((a) => a.question_id === q.id);
-                if (ans && ans.selected_option) {
-                    if (ans.selected_option.option_text.trim() === q.correct_answer?.trim()) {
-                        right++;
-                    } else {
-                        wrong++;
-                    }
-                }
-            }
-
-            totalRight += right;
-            totalWrong += wrong;
-            totalUnanswered += (totalQuestions - attempt.answers.length);
-        }
 
         return {
             package_id: packageId,
             exam_id: examId || 'all_exams_in_package',
-            total_submitted_attempts: attempts.length,
+            total_submitted_attempts: aggregateResult._count.attempt_id,
             aggregate_stats: {
-                total_right: totalRight,
-                total_wrong: totalWrong,
-                total_unanswered: totalUnanswered,
+                total_right: aggregateResult._sum.right_count || 0,
+                total_wrong: aggregateResult._sum.wrong_count || 0,
             },
         };
     }
